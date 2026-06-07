@@ -1,0 +1,6 @@
+face:
+  threshold: 0.42
+  max_attempts: 3
+  camera_index: 0
+  camera_width: 320
+  camera_height: 240

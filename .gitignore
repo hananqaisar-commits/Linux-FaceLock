@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenv
+venv/
+.env/
+
+# Logs
+logs/
+*.log
+
+# Face data (VERY IMPORTANT - never commit)
+data/faces/
+data/*.npy
+data/users_meta.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.swp
