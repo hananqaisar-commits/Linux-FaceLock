@@ -1,49 +1,35 @@
-# ═══════════════════════════════════════════════════════════
-#  NovaUnlock .gitignore
-#  Source code is PRIVATE — only binary releases on GitHub
-# ═══════════════════════════════════════════════════════════
-
-# Python source (private)
+# Source code is PRIVATE — only binary on GitHub
 nova_unlock/
 scripts/
 installer_main.py
 install.sh
+install.sh.backup
+install.sh.*
+*.backup
+*.bak
 *.py
 *.pyc
 __pycache__/
 .venv/
-*.egg-info/
-
-# Build artifacts
 build/
 dist/
 nova_bundle/
 *.spec
-
-# Local config & data
 config/
 data/
 logs/
 *.log
-
-# PAM cache
+requirements.txt
 /tmp/nova_*
-
-# OS
 .DS_Store
-Thumbs.db
-
-# IDE
 .vscode/
 .idea/
 .agents/
-
-# Skills lock
 skills-lock.json
 
-# Keep these (public)
+# WHITELIST
 !README.md
 !LICENSE
 !.gitignore
 !releases/
-!screenshots/
+!releases/*
