@@ -1,23 +1,30 @@
-# Python
+# ═══════════════════════════════════════════════════════════
+#  NovaUnlock .gitignore
+#  Source code is PRIVATE — only binary releases on GitHub
+# ═══════════════════════════════════════════════════════════
+
+# Python source (private)
+nova_unlock/
+scripts/
+installer_main.py
+install.sh
+*.py
+*.pyc
 __pycache__/
-*.py[cod]
-*.pyo
 .venv/
 *.egg-info/
 
-# PyInstaller build artifacts
+# Build artifacts
 build/
 dist/
-*.spec
 nova_bundle/
+*.spec
 
-# Logs
+# Local config & data
+config/
+data/
 logs/
 *.log
-
-# Face data (private)
-data/faces/
-data/face_user_map.json
 
 # PAM cache
 /tmp/nova_*
@@ -29,3 +36,14 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.agents/
+
+# Skills lock
+skills-lock.json
+
+# Keep these (public)
+!README.md
+!LICENSE
+!.gitignore
+!releases/
+!screenshots/
