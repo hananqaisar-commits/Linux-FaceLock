@@ -171,6 +171,168 @@ def load_config() -> dict:
     return config
 
 
+
+
+def get_distro() -> dict:
+    """
+    Detect Linux distribution.
+    Returns: {"id": "ubuntu", "family": "debian", "pkg": "apt"}
+    """
+    info = {"id": "unknown", "family": "unknown", "pkg": "unknown", "version": ""}
+
+    # Method 1: /etc/os-release (most reliable)
+    try:
+        with open("/etc/os-release") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("ID="):
+                    info["id"] = line.split("=", 1)[1].strip('"').lower()
+                elif line.startswith("ID_LIKE="):
+                    info["family"] = line.split("=", 1)[1].strip('"').lower()
+                elif line.startswith("VERSION_ID="):
+                    info["version"] = line.split("=", 1)[1].strip('"')
+    except Exception:
+        pass
+
+    # Normalize family
+    distro_id = info["id"]
+    family = info["family"]
+
+    # DEB based
+    if distro_id in ("ubuntu", "debian", "kali", "linuxmint", "pop",
+                      "elementary", "zorin", "mx", "lmde", "parrot"):
+        info["family"] = "debian"
+        info["pkg"] = "apt"
+    elif "debian" in family or "ubuntu" in family:
+        info["family"] = "debian"
+        info["pkg"] = "apt"
+
+    # RPM based
+    elif distro_id in ("fedora", "rhel", "centos", "rocky", "alma",
+                        "oracle", "scientific"):
+        info["family"] = "redhat"
+        info["pkg"] = "dnf"
+    elif "rhel" in family or "fedora" in family:
+        info["family"] = "redhat"
+        info["pkg"] = "dnf"
+
+    # openSUSE
+    elif distro_id in ("opensuse-leap", "opensuse-tumbleweed", "sles"):
+        info["family"] = "suse"
+        info["pkg"] = "zypper"
+    elif "suse" in family:
+        info["family"] = "suse"
+        info["pkg"] = "zypper"
+
+    # Arch based
+    elif distro_id in ("arch", "manjaro", "endeavouros", "garuda",
+                        "artix", "arcolinux"):
+        info["family"] = "arch"
+        info["pkg"] = "pacman"
+    elif "arch" in family:
+        info["family"] = "arch"
+        info["pkg"] = "pacman"
+
+    # Void
+    elif distro_id == "void":
+        info["family"] = "void"
+        info["pkg"] = "xbps"
+
+    # Alpine
+    elif distro_id == "alpine":
+        info["family"] = "alpine"
+        info["pkg"] = "apk"
+
+    # Gentoo
+    elif distro_id == "gentoo":
+        info["family"] = "gentoo"
+        info["pkg"] = "emerge"
+
+    return info
+
+
+def get_packages_for_distro(distro: dict) -> tuple:
+    """
+    Returns (install_command, package_list) for given distro.
+    """
+    pkg = distro["pkg"]
+
+    # Common packages (distro-specific names)
+    packages = {
+        "apt": {
+            "cmd": ["apt-get", "install", "-y"],
+            "pre": ["apt-get", "update", "-qq"],
+            "pkgs": [
+                "libpam-script",
+                "xdotool",
+                "python3-xlib",
+                "alsa-utils",
+                "pulseaudio-utils",
+                "x11-utils",
+                "python3-venv",
+                "python3-pip",
+                "cmake",
+                "build-essential",
+                "python3-dev",
+            ]
+        },
+        "dnf": {
+            "cmd": ["dnf", "install", "-y"],
+            "pre": None,
+            "pkgs": [
+                "pam",
+                "xdotool",
+                "python3-xlib",
+                "alsa-utils",
+                "pulseaudio-utils",
+                "xdpyinfo",
+                "python3-pip",
+                "python3-devel",
+                "cmake",
+                "gcc-c++",
+                "make",
+            ]
+        },
+        "pacman": {
+            "cmd": ["pacman", "-S", "--noconfirm"],
+            "pre": ["pacman", "-Sy"],
+            "pkgs": [
+                "pam",
+                "xdotool",
+                "python-xlib",
+                "alsa-utils",
+                "pulseaudio",
+                "xorg-xdpyinfo",
+                "python-pip",
+                "cmake",
+                "base-devel",
+            ]
+        },
+        "zypper": {
+            "cmd": ["zypper", "install", "-y"],
+            "pre": ["zypper", "refresh"],
+            "pkgs": [
+                "pam",
+                "xdotool",
+                "python3-xlib",
+                "alsa-utils",
+                "pulseaudio-utils",
+                "xdpyinfo",
+                "python3-pip",
+                "python3-devel",
+                "cmake",
+                "gcc-c++",
+            ]
+        },
+    }
+
+    if pkg in packages:
+        return packages[pkg]
+    else:
+        # Fallback: try apt
+        return packages["apt"]
+
+
 def setup_environment():
     user = get_real_user()
     display = get_display()
@@ -200,4 +362,5 @@ def setup_environment():
         "nova_root": root,
         "desktop": get_desktop_env(),
         "display_manager": get_display_manager(),
+        "distro": get_distro(),
     }
