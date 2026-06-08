@@ -1,26 +1,31 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-*.pyd
+.venv/
+*.egg-info/
 
-# Virtualenv
-venv/
-.env/
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+nova_bundle/
 
 # Logs
 logs/
 *.log
 
-# Face data (VERY IMPORTANT - never commit)
+# Face data (private)
 data/faces/
-data/*.npy
-data/users_meta.json
+data/face_user_map.json
 
-# OS files
+# PAM cache
+/tmp/nova_*
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Temporary
-*.tmp
-*.swp
+# IDE
+.vscode/
+.idea/
