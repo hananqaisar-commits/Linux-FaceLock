@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/NovaUnlock-v4.2-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
+<img src="https://img.shields.io/badge/NovaUnlock-v4.3-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
 # NovaUnlock
 
 **Premium Face Authentication for Linux**
 
-*iOS Face ID-style biometric unlock — local, private, and instant*
+*Smart face unlock for Linux — local, private, and instant*
 
-[![Version](https://img.shields.io/badge/version-4.2-4a90d9?style=flat-square&logo=github)]()
+[![Version](https://img.shields.io/badge/version-4.3-4a90d9?style=flat-square&logo=github)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20X11-27ae60?style=flat-square&logo=linux&logoColor=white)]()
 [![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square)]()
 [![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square)]()
@@ -22,7 +22,7 @@
 
 ## Overview
 
-**NovaUnlock** brings iOS Face ID-style biometric authentication to Linux. Look at your camera — you're in. No passwords, no delays, no cloud.
+**NovaUnlock** brings smart face unlock to Linux. Look at your camera — you're in. No passwords, no delays, no cloud.
 
 > **100% local processing.** Your face data never leaves your machine. No telemetry, no network calls, no exceptions.
 
@@ -40,7 +40,7 @@
 | **Anti-Spoofing** | Blink detection + texture analysis blocks photo attacks |
 
 ### Enrollment Experience
-- **iOS Face ID Wizard** — Familiar circular scanning UI with dark blue theme
+- **Smart Face Wizard** — Smooth circular scanning UI with dark blue theme
 - **16-Position Auto-Capture** — Move your head; dashes fill green as each angle is captured
 - **Cinematic Animations** — Particle burst on startup, smooth screen transitions
 - **Professional Audio Cues** — Synthesized sound feedback throughout enrollment
@@ -60,7 +60,7 @@
 ### 1 — Download
 
 ```bash
-wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.2
+wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.3
 ```
 
 Or get the latest binary from the **[Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases)** page.
@@ -68,8 +68,8 @@ Or get the latest binary from the **[Releases](https://github.com/hananqaisar-co
 ### 2 — Install
 
 ```bash
-chmod +x nova_unlock_installer_v4.2
-sudo ./nova_unlock_installer_v4.2
+chmod +x nova_unlock_installer_v4.3
+sudo ./nova_unlock_installer_v4.3
 ```
 
 > Installation takes **5–10 minutes** (includes dlib compilation from source).
@@ -236,14 +236,14 @@ cat ~/NovaUnlock/logs/install.log
 
 # Install missing build tools, then retry
 sudo apt update && sudo apt install -y cmake build-essential
-sudo ./nova_unlock_installer_v4.2
+sudo ./nova_unlock_installer_v4.3
 ```
 
 ---
 
 ## Privacy & Security
 
-NovaUnlock is designed from the ground up for offline, private biometric authentication:
+NovaUnlock is designed from the ground up for offline, private face authentication:
 
 - **No network activity** — Verify yourself with `sudo tcpdump -i any host 0.0.0.0`
 - **No raw face images** — Only 128-dimensional mathematical encodings are written to disk
@@ -271,7 +271,7 @@ This cleanly removes:
 
 ## Roadmap
 
-### v4.2 *(Coming Soon)*
+### v4.3 *(Latest Release)*
 - [ ] Screenshots and demo video
 - [ ] Wayland support (GNOME 40+, Fedora)
 - [ ] GDM and SDDM greeter integration
@@ -310,6 +310,6 @@ Reverse engineering, decompilation, modification, and commercial redistribution 
 
 If you find NovaUnlock useful, consider starring the repo ⭐
 
-**NovaUnlock v4.2** · Premium Linux Biometric Authentication · Built for the Linux community
+**NovaUnlock v4.3** · Smart Face Unlock for Linux · Built for the Linux community
 
 </div>
