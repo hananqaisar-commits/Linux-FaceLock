@@ -1,0 +1,24 @@
+[Unit]
+Description=NovaUnlock Face Unlock Watcher
+After=default.target graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/bin/sleep 3
+ExecStart=/bin/bash -lc '\
+  export DISPLAY="${DISPLAY:-:1}"; \
+  export XAUTHORITY="${XAUTHORITY:-/run/user/$(id -u)/gdm/Xauthority}"; \
+  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"; \
+  export QT_QPA_PLATFORM=xcb; \
+  unset WAYLAND_DISPLAY; \
+  exec /home/%u/NovaUnlock/.venv/bin/python3 \
+       /home/%u/NovaUnlock/scripts/face_unlock_daemon.pyc'
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

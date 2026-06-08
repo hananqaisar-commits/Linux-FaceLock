@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/NovaUnlock-v4.4-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
+<img src="https://img.shields.io/badge/NovaUnlock-v4.5-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
 # NovaUnlock
 
@@ -60,7 +60,7 @@
 ### 1 — Download
 
 ```bash
-wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.4
+wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.5
 ```
 
 Or get the latest binary from the **[Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases)** page.
@@ -68,8 +68,8 @@ Or get the latest binary from the **[Releases](https://github.com/hananqaisar-co
 ### 2 — Install
 
 ```bash
-chmod +x nova_unlock_installer_v4.4
-sudo ./nova_unlock_installer_v4.4
+chmod +x nova_unlock_installer_v4.5
+sudo ./nova_unlock_installer_v4.5
 ```
 
 > Installation takes **5–10 minutes** (includes dlib compilation from source).
@@ -236,7 +236,7 @@ cat ~/NovaUnlock/logs/install.log
 
 # Install missing build tools, then retry
 sudo apt update && sudo apt install -y cmake build-essential
-sudo ./nova_unlock_installer_v4.4
+sudo ./nova_unlock_installer_v4.5
 ```
 
 ---
@@ -271,7 +271,7 @@ This cleanly removes:
 
 ## Roadmap
 
-### v4.4 *(Latest Release)*
+### v4.5 *(Latest Release)*
 - [ ] Screenshots and demo video
 - [ ] Wayland support (GNOME 40+, Fedora)
 - [ ] GDM and SDDM greeter integration
@@ -310,6 +310,6 @@ Reverse engineering, decompilation, modification, and commercial redistribution 
 
 If you find NovaUnlock useful, consider starring the repo ⭐
 
-**NovaUnlock v4.4** · Smart Face Unlock for Linux · Built for the Linux community
+**NovaUnlock v4.5** · Smart Face Unlock for Linux · Built for the Linux community
 
 </div>
