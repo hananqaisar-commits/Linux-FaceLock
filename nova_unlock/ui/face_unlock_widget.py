@@ -257,11 +257,27 @@ SND_FAIL     = mk_fail()
 SND_COLLAPSE = mk_collapse()
 
 def play(path):
+    """Play sound via PulseAudio with ALSA fallback."""
     try:
-        subprocess.Popen(["aplay", "-q", path],
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL)
-    except: pass
+        subprocess.Popen(
+            ["paplay", path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env={**os.environ,
+                 "XDG_RUNTIME_DIR": os.environ.get(
+                     "XDG_RUNTIME_DIR",
+                     f"/run/user/{os.getuid()}"
+                 )}
+        )
+    except Exception:
+        try:
+            subprocess.Popen(
+                ["aplay", "-q", "-D", "default", path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
 
 # ══════════════════════════════════════════════════════════════
 # SPRING PHYSICS — UISpringTimingParameters equivalent
@@ -606,6 +622,9 @@ class FaceUnlockWidget(QWidget):
         self.shake_t      = -1.0
         self.ell          = 0
         self.demo_cy      = 0
+        # Animation guard
+        self._pending_ok      = False
+        self._pending_ok_user = None
 
         # ── Dynamic Island state ─────────────────────────
         # Phases:
@@ -652,10 +671,20 @@ class FaceUnlockWidget(QWidget):
     # ── State transitions ──────────────────────────────────
     def _on_ok(self, n):
         if self.ph == self.OK: return
+        # ── Animation Guard ──────────────────────────────
+        # Store result, wait for scan animation to complete
+        self._pending_ok_user = n
+        self._pending_ok      = True
+        if self.ph == self.SCAN and self.scan_step >= 6:
+            self._trigger_ok(n)
+        elif self.ph != self.SCAN:
+            self._trigger_ok(n)
+
+    def _trigger_ok(self, n):
+        if self.ph == self.OK: return
         self.ph = self.OK; self.t0 = time.time(); self.nm = n
-        # Particle burst — Metal emitter equivalent
+        self._pending_ok = False
         self.particles.burst(self.CX, self.CY, [0, 230, 118], n=60)
-        # Spring pop-in for checkmark
         self.check_spring.reset(x=1.4, v=0.0)
         play(SND_OK)
 
@@ -967,6 +996,10 @@ class FaceUnlockWidget(QWidget):
                 self.bracket_show = 0.0
             self.target_morph = 1.0
             self.txt          = "Face Recognized"
+            if getattr(self, "_pending_ok", False):
+                u = getattr(self, "_pending_ok_user", None)
+                if u and self.scan_step_t > 0.15:
+                    self._trigger_ok(u)
             if self.scan_step_t > 0.30:
                 self.scan_step   = 7
                 self.scan_step_t = 0.0
@@ -1056,6 +1089,10 @@ class FaceUnlockWidget(QWidget):
             if self.demo_mode and self.scan_step_t > 0.1:
                 self._on_ok("Demo_User")
                 self.scan_step_t = 0.0
+            if getattr(self, "_pending_ok", False):
+                u = getattr(self, "_pending_ok_user", None)
+                if u:
+                    self._trigger_ok(u)
 
         # ════════════════════════════════════════════════
         # PREMIUM SMOOTH INTERPOLATION
@@ -1528,6 +1565,8 @@ class FaceUnlockWidget(QWidget):
         self.txt            = ""
         self.txt_alpha      = 0.0
         self._fail_count    = 0
+        self._pending_ok      = False
+        self._pending_ok_user = None
 
         # ── Reset check spring ───────────────────────────
         self.check_spring.reset(x=0.0, v=0.0)
