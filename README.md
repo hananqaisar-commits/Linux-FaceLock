@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/NovaUnlock-v4.3-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
+<img src="https://img.shields.io/badge/NovaUnlock-v4.4-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
 # NovaUnlock
 
@@ -8,7 +8,7 @@
 
 *Smart face unlock for Linux — local, private, and instant*
 
-[![Version](https://img.shields.io/badge/version-4.3-4a90d9?style=flat-square&logo=github)]()
+[![Version](https://img.shields.io/badge/version-4.4-4a90d9?style=flat-square&logo=github)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20X11-27ae60?style=flat-square&logo=linux&logoColor=white)]()
 [![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square)]()
 [![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square)]()
@@ -60,7 +60,7 @@
 ### 1 — Download
 
 ```bash
-wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.3
+wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.4
 ```
 
 Or get the latest binary from the **[Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases)** page.
@@ -68,8 +68,8 @@ Or get the latest binary from the **[Releases](https://github.com/hananqaisar-co
 ### 2 — Install
 
 ```bash
-chmod +x nova_unlock_installer_v4.3
-sudo ./nova_unlock_installer_v4.3
+chmod +x nova_unlock_installer_v4.4
+sudo ./nova_unlock_installer_v4.4
 ```
 
 > Installation takes **5–10 minutes** (includes dlib compilation from source).
@@ -236,7 +236,7 @@ cat ~/NovaUnlock/logs/install.log
 
 # Install missing build tools, then retry
 sudo apt update && sudo apt install -y cmake build-essential
-sudo ./nova_unlock_installer_v4.3
+sudo ./nova_unlock_installer_v4.4
 ```
 
 ---
@@ -271,7 +271,7 @@ This cleanly removes:
 
 ## Roadmap
 
-### v4.3 *(Latest Release)*
+### v4.4 *(Latest Release)*
 - [ ] Screenshots and demo video
 - [ ] Wayland support (GNOME 40+, Fedora)
 - [ ] GDM and SDDM greeter integration
@@ -310,6 +310,6 @@ Reverse engineering, decompilation, modification, and commercial redistribution 
 
 If you find NovaUnlock useful, consider starring the repo ⭐
 
-**NovaUnlock v4.3** · Smart Face Unlock for Linux · Built for the Linux community
+**NovaUnlock v4.4** · Smart Face Unlock for Linux · Built for the Linux community
 
 </div>
