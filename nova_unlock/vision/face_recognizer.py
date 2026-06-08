@@ -290,6 +290,15 @@ def identify_user(timeout: int = 30,
     start     = time.time()
     matched   = None
 
+    # ── Wait for UI animation to be ready (non-blocking) ──
+    waited = 0
+    while waited < 1.2:
+        time.sleep(0.05)
+        waited += 0.05
+
+    FRAMES_NEEDED  = 4
+    FRAME_INTERVAL = 0.08
+
     for attempt in range(1, max_attempts + 1):
         if time.time() - start > timeout:
             log.warning("Timeout reached")
@@ -297,26 +306,48 @@ def identify_user(timeout: int = 30,
 
         log.info(f"--- Attempt {attempt}/{max_attempts} ---")
 
-        # Collect embeddings
-        embeddings = []
-        for _ in range(20):
-            ret, frame = cap.read()
-            if not ret:
+        # Collect embeddings (non-blocking grab)
+        embeddings   = []
+        frames_tried = 0
+
+        while len(embeddings) < FRAMES_NEEDED and frames_tried < 12:
+            cap.grab()
+            ret, frame = cap.retrieve()
+            frames_tried += 1
+
+            if not ret or frame is None:
+                time.sleep(0.03)
                 continue
             try:
-                rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                locs = face_recognition.face_locations(rgb, model="hog")
+                # Small frame for speed
+                small = cv2.resize(frame, (160, 120))
+                rgb   = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+                locs  = face_recognition.face_locations(
+                    rgb, model="hog"
+                )
                 if locs:
-                    encs = face_recognition.face_encodings(rgb, locs)
+                    sx = frame.shape[1] / 160
+                    sy = frame.shape[0] / 120
+                    scaled = [
+                        (int(t*sy), int(r*sx),
+                         int(b*sy), int(l*sx))
+                        for (t, r, b, l) in locs
+                    ]
+                    rgb_full = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    encs = face_recognition.face_encodings(
+                        rgb_full, scaled
+                    )
                     if encs:
                         embeddings.append(encs[0])
             except Exception as e:
                 log.debug(f"Frame error: {e}")
-            time.sleep(0.05)
+            time.sleep(FRAME_INTERVAL)
 
         if not embeddings:
             log.warning("No face detected")
-            time.sleep(1)
+            # Non-blocking wait between attempts
+            for _ in range(20):
+                time.sleep(0.08)
             continue
 
         # Average embeddings
@@ -343,7 +374,8 @@ def identify_user(timeout: int = 30,
             break
         else:
             log.info(f"❌ No confident match")
-            time.sleep(1)
+            for _ in range(20):
+                time.sleep(0.08)
 
     cap.release()
 

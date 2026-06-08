@@ -181,6 +181,18 @@ def setup_environment():
     os.environ.setdefault("NOVA_ROOT", str(root))
     os.environ.setdefault("REAL_USER", user)
     os.environ.setdefault("HOME", f"/home/{user}")
+
+    # ── Audio environment for lock screen / greeter ──
+    try:
+        import pwd
+        uid = str(pwd.getpwnam(user).pw_uid)
+        xdg = f"/run/user/{uid}"
+        os.environ.setdefault("XDG_RUNTIME_DIR", xdg)
+        os.environ.setdefault("PULSE_SERVER",
+                              f"unix:{xdg}/pulse/native")
+    except Exception:
+        pass
+
     return {
         "user": user,
         "display": display,

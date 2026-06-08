@@ -188,7 +188,77 @@ greeter-hide-users=true
 LDMEOF
 echo "        done"
 
-echo "  [5/6] Setting up lockscreen watcher..."
+echo "  [4.5/8] Installing xflock4 wrapper..."
+cat > /usr/local/bin/nova_xflock4_lock.sh << 'XFEOF'
+#!/bin/bash
+LOG=/tmp/nova_xflock4.log
+echo "==== $(date) nova_xflock4 start ====" >> "$LOG"
+
+(
+    sleep 0.5
+    REAL_USER="${SUDO_USER:-$USER}"
+    [ -z "$REAL_USER" ] && REAL_USER="$(logname 2>/dev/null || echo hanan)"
+    REAL_HOME="/home/$REAL_USER"
+    UID_NUM="$(id -u $REAL_USER 2>/dev/null || echo 1000)"
+
+    export DISPLAY=:0
+    export XAUTHORITY="$REAL_HOME/.Xauthority"
+    export XDG_RUNTIME_DIR="/run/user/$UID_NUM"
+    export PULSE_SERVER="unix:${XDG_RUNTIME_DIR}/pulse/native"
+
+    # Get DBUS from user session
+    XFCE_PID="$(pgrep -u $REAL_USER xfce4-session 2>/dev/null | head -1)"
+    if [ -n "$XFCE_PID" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="$(
+            tr '\0' '\n' < /proc/$XFCE_PID/environ 2>/dev/null \
+            | grep DBUS_SESSION_BUS_ADDRESS \
+            | cut -d= -f2-
+        )"
+    fi
+
+    # Keep compositor ON for smooth animation
+    xfconf-query -c xfwm4 -p /general/use_compositing -s true 2>/dev/null
+
+    NOVA_DIR="$(dirname "$(readlink -f "$0")")/../.." 
+    # Find NovaUnlock root
+    for d in "$REAL_HOME/Desktop/NovaUnlock" "/opt/nova-unlock"; do
+        [ -f "$d/scripts/face_unlock_daemon.py" ] && NOVA_DIR="$d" && break
+    done
+
+    VENV="$NOVA_DIR/.venv"
+    [ ! -f "$VENV/bin/python3" ] && VENV="$REAL_HOME/Desktop/NovaUnlock/.venv"
+
+    nohup "$VENV/bin/python3" \
+        "$NOVA_DIR/scripts/face_unlock_daemon.py" \
+        >>/tmp/nova_lock_ui.out 2>>/tmp/nova_lock_ui.err &
+
+    echo "daemon launched pid=$!" >> "$LOG"
+) &
+
+# Actual lock
+if pgrep -x xfce4-screensaver >/dev/null 2>&1; then
+    exec xfce4-screensaver-command -l
+elif pgrep -x light-locker >/dev/null 2>&1; then
+    exec light-locker-command -l
+elif command -v dm-tool >/dev/null 2>&1; then
+    exec dm-tool lock
+else
+    exec loginctl lock-session
+fi
+XFEOF
+chmod +x /usr/local/bin/nova_xflock4_lock.sh
+
+# Set XFCE lock command to use our wrapper
+su - "$REAL_USER" -c \
+    "xfconf-query -c xfce4-session -p /general/LockCommand \
+     -n -t string -s '/usr/local/bin/nova_xflock4_lock.sh'" 2>/dev/null || \
+su - "$REAL_USER" -c \
+    "xfconf-query -c xfce4-session -p /general/LockCommand \
+     -t string -s '/usr/local/bin/nova_xflock4_lock.sh'" 2>/dev/null
+
+echo "        done"
+
+echo "  [5/8] Setting up lockscreen watcher..."
 
 WATCHER_SCRIPT="/usr/local/bin/nova_unlock_watcher.sh"
 cat > "$WATCHER_SCRIPT" << WATCHER
@@ -231,7 +301,7 @@ DESKTOP
 chown "$REAL_USER:$REAL_USER" "$AUTOSTART_DIR/nova-unlock-watcher.desktop"
 echo "        done"
 
-echo "  [6/6] Starting watcher for current session..."
+echo "  [6/8] Starting watcher for current session..."
 su -s /bin/bash "$REAL_USER" -c "
     export DISPLAY=:0
     export XAUTHORITY=$REAL_HOME/.Xauthority
@@ -242,10 +312,63 @@ su -s /bin/bash "$REAL_USER" -c "
 " 2>/dev/null || true
 echo "        done"
 
+echo "  [7/8] Setting up sudoers permissions..."
+cat > /etc/sudoers.d/nova-unlock << SUEOF
+$REAL_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart lightdm
+SUEOF
+chmod 440 /etc/sudoers.d/nova-unlock
+echo "        done"
+
+echo "  [8/8] Creating uninstaller..."
+cat > "$NOVA_DIR/uninstall.sh" << 'UNEOF'
+#!/bin/bash
+echo "Removing NovaUnlock system integration..."
+[ "$EUID" -ne 0 ] && echo "Run with sudo" && exit 1
+
+rm -f /usr/local/bin/nova_xflock4_lock.sh
+rm -f /usr/local/bin/nova_unlock_greeter_hook.sh
+rm -f /usr/local/bin/nova_unlock_greeter_helper.sh
+rm -f /usr/local/bin/nova_unlock_session_cleanup.sh
+rm -f /usr/local/bin/nova_unlock_watcher.sh
+rm -f /etc/lightdm/lightdm.conf.d/50-nova-unlock.conf
+rm -f /etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf
+rm -f /etc/sudoers.d/nova-unlock
+rm -f /tmp/nova_*
+
+for pam_file in /etc/pam.d/xfce4-screensaver /etc/pam.d/lightdm /etc/pam.d/lightdm-greeter; do
+    [ -f "$pam_file" ] && sed -i '/pam_script/d' "$pam_file" 2>/dev/null
+done
+
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME="/home/$REAL_USER"
+rm -f "$REAL_HOME/.config/autostart/nova-unlock-watcher.desktop"
+pkill -f nova_unlock_watcher 2>/dev/null
+
+# Restore default XFCE lock command
+su - "$REAL_USER" -c "xfconf-query -c xfce4-session -p /general/LockCommand -r" 2>/dev/null
+
+echo "✅ NovaUnlock removed. Restart lightdm to apply."
+UNEOF
+chmod +x "$NOVA_DIR/uninstall.sh"
+chown "$REAL_USER:$REAL_USER" "$NOVA_DIR/uninstall.sh"
+echo "        done"
+
 echo
-echo "  Installation complete."
+echo "  ══════════════════════════════════════════"
+echo "  ✅ NovaUnlock installed successfully!"
+echo "  ══════════════════════════════════════════"
 echo
-echo "  Next step: enroll your face"
-echo "  source .venv/bin/activate"
-echo "  python3 scripts/enroll.py"
+echo "  Next steps:"
+echo "    1. Enroll your face:"
+echo "       source .venv/bin/activate"
+echo "       python3 scripts/enroll.py"
+echo
+echo "    2. Test lock screen:"
+echo "       xflock4"
+echo
+echo "    3. Test demo UI:"
+echo "       .venv/bin/python3 nova_unlock/ui/face_unlock_widget.py --demo"
+echo
+echo "    4. Uninstall:"
+echo "       sudo bash uninstall.sh"
 echo
