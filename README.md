@@ -1,207 +1,315 @@
+<div align="center">
+
+<img src="https://img.shields.io/badge/NovaUnlock-v4.1-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
+
 # NovaUnlock
 
-NovaUnlock is a local Linux face unlock system for desktop login and lock-screen authentication. It uses a PyQt5 camera UI, local face embeddings, PAM integration, and LightDM/XFCE hooks so a recognized enrolled user can unlock their own session without sending face data to a cloud service.
+**Premium Face Authentication for Linux**
 
-Tested primary target: Kali Linux, XFCE, LightDM, X11, Python 3.13.
+*iOS Face ID-style biometric unlock — local, private, and instant*
+
+[![Version](https://img.shields.io/badge/version-4.1-4a90d9?style=flat-square&logo=github)]()
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20X11-27ae60?style=flat-square&logo=linux&logoColor=white)]()
+[![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square)]()
+[![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square)]()
+[![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-8e44ad?style=flat-square&logo=shield&logoColor=white)]()
+
+[Download](#-quick-install) · [Features](#-features) · [Install](#-quick-install) · [Usage](#-usage) · [Troubleshoot](#-troubleshooting)
+
+</div>
+
+---
+
+## Overview
+
+**NovaUnlock** brings iOS Face ID-style biometric authentication to Linux. Look at your camera — you're in. No passwords, no delays, no cloud.
+
+> **100% local processing.** Your face data never leaves your machine. No telemetry, no network calls, no exceptions.
+
+---
 
 ## Features
 
-- PyQt5 face unlock panel for lock-screen scanning
-- PyQt5 enrollment wizard with live camera preview
-- Automatic five-angle enrollment: front, left, right, up, down
-- Face encodings stored locally in `data/faces/`
-- Multi-user support with one face profile per Linux user
-- Configurable recognition threshold, timeout, attempts, angle count, UI, audio, and security flags in `config/nova.conf`
-- Password fallback after timeout or repeated recognition failure
-- Password fallback authenticates through Linux PAM using `libpam`
-- GUI error dialogs for missing camera, missing enrollment, low light, and spoof warnings
-- Basic liveness and anti-spoof checks using blink tracking and texture analysis when dependencies/models are available
-- LightDM greeter hook for login flow
-- XFCE lock-screen watcher and PAM cache flow for unlock
-- Local-only storage: no cloud calls and no raw face images saved
+### Core Authentication
+| Feature | Description |
+|---|---|
+| **Instant Face Unlock** | Look at the camera to unlock your lock screen |
+| **Auto Login at Boot** | Face recognition triggers at the greeter screen |
+| **Multi-User Support** | One face profile per Linux user account |
+| **Password Fallback** | Automatic switch to password after timeout or failed attempts |
+| **Anti-Spoofing** | Blink detection + texture analysis blocks photo attacks |
 
-## Installation
+### Enrollment Experience
+- **iOS Face ID Wizard** — Familiar circular scanning UI with dark blue theme
+- **16-Position Auto-Capture** — Move your head; dashes fill green as each angle is captured
+- **Cinematic Animations** — Particle burst on startup, smooth screen transitions
+- **Professional Audio Cues** — Synthesized sound feedback throughout enrollment
+- **Built-in Settings Panel** — Manage faces and adjust sensitivity from the wizard
 
-### Install from a private binary release
+### Privacy & Security
+- **Local-Only Storage** — Face data lives in `~/NovaUnlock/data/faces/`
+- **No Raw Images** — Only mathematical encodings (`.npy` files) are stored
+- **PAM Integration** — Secure 15-second expiring cache, single-use per unlock
+- **Liveness Detection** — Blink-based real-person verification
+- **Texture Analysis** — Detects and blocks screens, prints, and photo spoofs
 
-If you are installing NovaUnlock for another Linux user and do not want to share the source code, build a protected installer on your machine:
+---
 
-```bash
-cd NovaUnlock
-chmod +x scripts/build_pro_release.sh
-./scripts/build_pro_release.sh
-```
+## Quick Install
 
-Give the other user only this file:
-
-```text
-dist/nova_unlock_installer
-```
-
-They install it with:
+### 1 — Download
 
 ```bash
-chmod +x nova_unlock_installer
-sudo ./nova_unlock_installer
+wget https://github.com/hananqaisar-commits/NovaUnlock/raw/main/releases/nova_unlock_installer_v4.1
 ```
 
-The installer extracts a sourceless runtime under `~/NovaUnlock`, configures dependencies and PAM integration, and prints the enrollment command when it finishes. Do not distribute the repository, `build/`, or `nova_bundle/` if you want to keep the source private.
+Or get the latest binary from the **[Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases)** page.
 
-### Install from source
+### 2 — Install
 
 ```bash
-git clone https://github.com/yourusername/NovaUnlock.git
-cd NovaUnlock
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-sudo bash install.sh
+chmod +x nova_unlock_installer_v4.1
+sudo ./nova_unlock_installer_v4.1
 ```
 
-The installer configures system packages, Python dependencies, PAM integration, the lock-screen wrapper, the watcher, LightDM hooks when available, sudoers entries for display-manager restart, and `uninstall.sh`.
+> Installation takes **5–10 minutes** (includes dlib compilation from source).
 
-## Enrollment Guide
+The installer automatically:
+- Detects your Linux distribution and package manager
+- Installs all system dependencies
+- Sets up a Python virtual environment with face recognition models
+- Configures PAM authentication
+- Integrates with your lock screen and display manager (LightDM)
+- Creates an uninstaller for clean removal
 
-Launch the GUI enrollment wizard:
+### 3 — Enroll Your Face
 
 ```bash
-cd ~/Desktop/NovaUnlock
-source .venv/bin/activate
-python3 scripts/enroll_gui.py
+~/NovaUnlock/.venv/bin/python3 ~/NovaUnlock/scripts/enroll_gui.py
 ```
 
-In the wizard:
+**Enrollment flow:**
 
-1. Select the Linux user account to enroll.
-2. Confirm the live camera preview detects your face.
-3. Let NovaUnlock automatically capture front, left, right, up, and down angles.
-4. Wait for the "Enrollment Complete" screen.
+```
+1. Welcome Screen    →  Select your user account
+2. Position Face     →  Camera detects your face
+3. Move Head         →  16 positions captured automatically
+4. Setup Complete    →  Green checkmark confirms success
+```
 
-Enrollment saves the averaged face encoding to `data/faces/<username>.npy` and metadata to `data/faces/users_meta.json`.
+---
+
+## Usage
+
+| Action | How to Trigger |
+|---|---|
+| Lock screen | `xflock4` or `Super + L` |
+| Face unlock | Look at the camera when locked |
+| Boot login | Automatic face recognition at the greeter |
+| Open settings | Enrollment wizard → Settings button (top-right) |
+| Re-enroll face | Run enrollment wizard again |
+| Uninstall | `sudo bash ~/NovaUnlock/uninstall.sh` |
+
+---
+
+## Supported Systems
+
+### Linux Distributions
+
+| Distribution | Package Manager | Status |
+|---|---|---|
+| Kali Linux | `apt` | ✅ Fully Supported *(Primary)* |
+| Ubuntu 22.04+ | `apt` | ✅ Fully Supported |
+| Debian 12+ | `apt` | ✅ Fully Supported |
+| Fedora 38+ | `dnf` | ⚠️ Experimental |
+| Arch / Manjaro | `pacman` | ⚠️ Experimental |
+| openSUSE | `zypper` | ⚠️ Experimental |
+
+### Desktop Environments
+
+| Desktop | Lock Screen | Greeter Login | Notes |
+|---|---|---|---|
+| XFCE | ✅ Full | ✅ Full | Primary target — fully tested |
+| GNOME | ⚠️ Partial | ❌ | Manual shortcut binding required |
+| KDE Plasma | ⚠️ Partial | ❌ | Manual shortcut binding required |
+| MATE | ⚠️ Partial | ❌ | PAM auto-configured |
+| Cinnamon | ⚠️ Partial | ❌ | PAM auto-configured |
+
+### Display Managers
+
+| Display Manager | Status |
+|---|---|
+| LightDM | ✅ Full support (lock screen + greeter) |
+| GDM | ⚠️ Lock screen only |
+| SDDM | ⚠️ Lock screen only |
+
+### System Requirements
+
+| Component | Minimum |
+|---|---|
+| OS | Linux (X11 session) |
+| Python | 3.10+ *(auto-installed)* |
+| RAM | 2 GB |
+| Disk Space | ~500 MB |
+| Camera | Any USB or built-in webcam |
+| Privileges | `sudo` access for installation |
+
+---
 
 ## Configuration
 
-Edit `config/nova.conf`:
+Edit `~/NovaUnlock/config/nova.conf` to customize behavior:
 
 ```ini
 [recognition]
-threshold = 0.5
-timeout = 10
-max_attempts = 3
-angles = 5
+threshold    = 0.50    # Lower = stricter (range: 0.35–0.65)
+timeout      = 10      # Seconds before falling back to password
+max_attempts = 3       # Failed attempts before password fallback
+angles       = 16      # Number of enrollment positions
 
 [ui]
-theme = dark
+theme               = dark
 show_camera_preview = true
-animation = true
+animation           = true
 
 [audio]
 success_sound = true
-fail_sound = true
+fail_sound    = true
 
 [security]
-liveness_check = true
-anti_spoof = true
+liveness_check  = true   # Blink detection
+anti_spoof      = true   # Texture analysis
+min_blinks      = 1
+liveness_window = 3.0
 ```
 
-Lower `threshold` values are stricter. Increase it only if recognition is reliable but too strict in your lighting conditions.
+> Changes take effect on the next lock/unlock cycle.
 
-## Supported Distros and Desktop Environments
-
-| Distro family | Package manager | Lock screen | Greeter login | Status |
-| --- | --- | --- | --- | --- |
-| Kali / Debian / Ubuntu | `apt` | XFCE supported | LightDM supported | Primary target |
-| Fedora / RHEL | `dnf` / `yum` | Partial | GDM greeter not supported | Experimental |
-| Arch | `pacman` | Partial | SDDM greeter not supported | Experimental |
-| openSUSE | `zypper` | Partial | Depends on DM | Experimental |
-
-| Desktop environment | Lock integration | Notes |
-| --- | --- | --- |
-| XFCE | Supported | Primary target with `xfce4-screensaver` or LightDM lock flow |
-| GNOME | Partial | Manual shortcut binding may be required |
-| KDE Plasma | Partial | Manual shortcut binding may be required |
-| MATE | Partial | PAM file configured when detected |
-| Cinnamon | Partial | PAM file configured when detected |
-
-## Screenshots
-
-Screenshots will be added here:
-
-- Enrollment wizard
-- Face unlock panel
-- Password fallback screen
-- Error dialogs
-
-## Testing
-
-```bash
-# Demo the animated face unlock UI
-.venv/bin/python3 nova_unlock/ui/face_unlock_widget.py --demo
-
-# Run GUI enrollment
-python3 scripts/enroll_gui.py
-
-# Test lock screen flow
-xflock4
-```
+---
 
 ## Troubleshooting
 
-Check logs:
+### Camera Not Detected
 
 ```bash
-tail -50 logs/face_auth.log
-tail -50 logs/watcher.log
-tail -50 /tmp/nova_xflock4.log
-tail -50 /tmp/nova_lock_ui.err
-sudo journalctl -u lightdm -n 50 --no-pager
-```
+# List available cameras
+ls /dev/video*
 
-If no camera is detected, verify OpenCV can see it:
+# Test camera devices
+v4l2-ctl --list-devices
 
-```bash
-python3 - <<'PY'
+# Verify camera works with OpenCV
+~/NovaUnlock/.venv/bin/python3 - <<'EOF'
 import cv2
 for i in range(5):
     cap = cv2.VideoCapture(i)
-    print(f"camera {i}: {cap.isOpened()}")
+    print(f"Camera {i}: {'OK' if cap.isOpened() else 'Not available'}")
     cap.release()
-PY
+EOF
 ```
 
-If recognition fails repeatedly, improve lighting and re-run:
+### Face Not Recognized
+
+- Ensure good lighting — avoid strong backlighting from windows
+- Re-enroll if you started or stopped wearing glasses
+- Lower the recognition threshold in **Settings → Recognition Sensitivity**
+- Try re-enrollment with your face at a different starting angle
+
+### Lock Screen Hangs
 
 ```bash
-python3 scripts/enroll_gui.py
+# Check authentication logs
+tail -50 ~/NovaUnlock/logs/face_auth.log
+
+# Check watcher status
+tail -50 ~/NovaUnlock/logs/watcher.log
+
+# Check system journal
+sudo journalctl -u lightdm -n 50 --no-pager
 ```
 
-## Project Structure
+### Installation Fails
 
-```text
-NovaUnlock/
-├── config/nova.conf
-├── data/
-│   ├── config.yaml
-│   └── faces/
-├── install.sh
-├── installer_main.py
-├── scripts/build_pro_release.sh
-├── nova_unlock/
-│   ├── core/
-│   ├── pam/
-│   ├── security/
-│   ├── ui/
-│   └── vision/
-├── requirements.txt
-└── scripts/
+```bash
+# View the installation log
+cat ~/NovaUnlock/logs/install.log
+
+# Install missing build tools, then retry
+sudo apt update && sudo apt install -y cmake build-essential
+sudo ./nova_unlock_installer_v4.1
 ```
+
+---
+
+## Privacy & Security
+
+NovaUnlock is designed from the ground up for offline, private biometric authentication:
+
+- **No network activity** — Verify yourself with `sudo tcpdump -i any host 0.0.0.0`
+- **No raw face images** — Only 128-dimensional mathematical encodings are written to disk
+- **No cloud dependency** — Works fully air-gapped
+- **Tamper-visible storage** — Inspect `~/NovaUnlock/data/faces/` yourself; only `.npy` files
+- **Auto-expiring PAM cache** — Authentication tokens expire after 15 seconds and are single-use
+
+---
 
 ## Uninstall
 
 ```bash
-sudo bash uninstall.sh
+sudo bash ~/NovaUnlock/uninstall.sh
 ```
+
+This cleanly removes:
+- All NovaUnlock files and directories
+- PAM configuration entries
+- Display manager hooks (LightDM)
+- Sudoers entries
+- Autostart watcher service
+- Lock screen wrapper scripts
+
+---
+
+## Roadmap
+
+### v4.2 *(Coming Soon)*
+- [ ] Screenshots and demo video
+- [ ] Wayland support (GNOME 40+, Fedora)
+- [ ] GDM and SDDM greeter integration
+- [ ] Multiple camera selection in UI
+- [ ] Desktop notifications on unlock
+
+### v5.0 *(Future)*
+- [ ] Optional encrypted cloud sync
+- [ ] Gesture-based commands
+- [ ] Web-based settings panel
+- [ ] Authentication analytics dashboard
+
+---
+
+## Support
+
+| Resource | Link |
+|---|---|
+| Report a Bug | [GitHub Issues](https://github.com/hananqaisar-commits/NovaUnlock/issues) |
+| Latest Release | [Releases Page](https://github.com/hananqaisar-commits/NovaUnlock/releases) |
+| Community | [GitHub Discussions](https://github.com/hananqaisar-commits/NovaUnlock/discussions) |
+
+---
 
 ## License
 
-NovaUnlock is released under the license included in `LICENSE`.
+NovaUnlock is **proprietary software** provided for personal, non-commercial use.
+
+Reverse engineering, decompilation, modification, and commercial redistribution are strictly prohibited. Source code is not publicly available. See [LICENSE](./LICENSE) for full terms.
+
+*Copyright © 2026 NovaUnlock. All rights reserved.*
+
+---
+
+<div align="center">
+
+If you find NovaUnlock useful, consider starring the repo ⭐
+
+**NovaUnlock v4.1** · Premium Linux Biometric Authentication · Built for the Linux community
+
+</div>
