@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/NovaUnlock-v4.5-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
+<img src="https://img.shields.io/badge/NovaUnlock-v4.6-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
 # NovaUnlock
 
@@ -8,7 +8,7 @@
 
 *Smart face unlock for Linux — local, private, and instant*
 
-[![Version](https://img.shields.io/badge/version-4.5-4a90d9?style=flat-square&logo=github)]()
+[![Version](https://img.shields.io/badge/version-4.6-4a90d9?style=flat-square&logo=github)]()
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Kali%20%7C%20Fedora-27ae60?style=flat-square&logo=linux&logoColor=white)]()
 [![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square)]()
 [![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square)]()
@@ -85,7 +85,7 @@ Download pre-built installer:
 
 Bash
 
-wget -O nova_unlock_installer https://github.com/YOUR_USERNAME/NovaUnlock/releases/download/v4.5/nova_unlock_installer_v4.5
+wget -O nova_unlock_installer https://github.com/YOUR_USERNAME/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v4.6
 chmod +x nova_unlock_installer
 sudo ./nova_unlock_installer
 
@@ -184,6 +184,6 @@ Privacy
 
 License
 
-Proprietary — NovaUnlock v4.5
+Proprietary — NovaUnlock v4.6
 © 2026 NovaUnlock Team
 
