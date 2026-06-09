@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square&logo=creativecommons&logoColor=white)]()
 [![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square&logo=statuspage&logoColor=white)]()
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-8e44ad?style=flat-square&logo=shield&logoColor=white)]()
-[![Build](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=githubactions&logoColor=white)]()
+[![Build](https://img.shields.io/badge/build-passing%2016%2F16-brightgreen?style=flat-square&logo=githubactions&logoColor=white)]()
 
 [Download](#-quick-install-binary) · [Features](#-features) · [Install](#-installation) · [Usage](#-usage) · [Troubleshoot](#-troubleshooting)
 
@@ -41,7 +41,7 @@
 | 👥 **Multi-User Support** | One face profile per Linux user |
 | 🔑 **Password Fallback** | Auto switch to password if face fails |
 | 🐍 **Python 3.13 Ready** | Latest Python — maximum performance |
-| 🎨 **Animated UI** | Beautiful Face ID style scanning animation |
+| 🎨 **Animated Face ID UI** | Beautiful Face ID style scanning animation |
 | 📷 **Auto Camera Detect** | USB & built-in webcam auto-detection |
 | 🔄 **DBus Watcher** | Auto-trigger on screen lock event |
 | 🛡️ **Liveness Detection** | Anti-spoofing protection |
@@ -84,11 +84,9 @@ git clone https://github.com/hananqaisar-commits/NovaUnlock.git
 cd NovaUnlock
 sudo bash install.sh
 
-    💡 Note: All 3 methods work the same way. Installer auto-detects path — no manual path changes needed.
+    💡 Note: All 3 methods work the same way. Installer auto-detects path.
 
 ⚡ Quick Install (Binary)
-
-Download pre-built installer:
 
 Bash
 
@@ -103,33 +101,40 @@ Bash
 
 sudo bash install.sh
 
+Expected output:
+
+text
+
+✅ Passed : 16/16
+
 Step 2 — Enroll Face
 
-After install, run:
+Bash
+
+cd ~/NovaUnlock && source .venv/bin/activate
+python3 scripts/enroll_gui.py
+
+Follow on-screen instructions:
+
+    Look straight at camera
+    10 samples will be captured automatically
+    Face data saved to ~/NovaUnlock/data/faces/
+
+Step 3 — Test UI
 
 Bash
 
-cd ~/NovaUnlock
-bash -c 'source .venv/bin/activate 2>/dev/null; python3 scripts/enroll_entry.pyc'
+source ~/NovaUnlock/.venv/bin/activate
+export DISPLAY=:0
+python3 ~/NovaUnlock/nova_unlock/ui/face_id_screen.py
 
-Or directly:
-
-Bash
-
-python3 ~/NovaUnlock/scripts/enroll_entry.pyc
-
-Step 3 — Lock Screen
-
-Press Super + L or:
+Step 4 — Lock Screen
 
 XFCE:
 
 Bash
 
-dbus-send --type=method_call \
-  --dest=org.xfce.ScreenSaver \
-  /org/xfce/ScreenSaver \
-  org.xfce.ScreenSaver.Lock
+xflock4
 
 GNOME:
 
@@ -140,7 +145,7 @@ dbus-send --type=method_call \
   /org/gnome/ScreenSaver \
   org.gnome.ScreenSaver.Lock
 
-Step 4 — Face Unlock
+Step 5 — Face Unlock
 
 Look at camera — NovaUnlock unlocks automatically! 🎉
 🔧 Troubleshooting
@@ -150,7 +155,7 @@ Bash
 
 cd ~/NovaUnlock
 source .venv/bin/activate
-python3 scripts/patch_face_models_py313.pyc
+python3 scripts/patch_face_models_py313.py
 
 🔄 Watcher Service Not Running
 
@@ -188,7 +193,7 @@ export XAUTHORITY=/run/user/1000/gdm/Xauthority
 
 Bash
 
-python3 ~/NovaUnlock/scripts/enroll_entry.pyc --force
+python3 ~/NovaUnlock/scripts/enroll_entry.py --force
 
 📋 Check Logs
 
@@ -206,17 +211,17 @@ sudo bash ~/NovaUnlock/uninstall.sh
 📋 Changelog
 🔥 v4.6 (Latest)
 
+    🎨 face_id_screen.py UI included in installer bundle
     🐍 Fixed Python 3.13 compatibility (setuptools, pkg_resources)
-    📦 Fixed face_recognition_models auto-install
+    📦 Fixed face_recognition_models install order
     🖥️ Fixed OpenCV GUI support (headless → full)
     🔍 Auto PYTHONPATH detection
-    🛠️ Improved installer reliability (15/15 checks passing)
-    📝 Updated README with proper install commands
+    🛠️ Installer 16/16 checks passing
 
 ⚡ v4.5 → v4.6
 
     🎨 New animated Face ID UI
-    🖥️ Multi-desktop support (XFCE, GNOME, KDE, Cinnamon)
+    🖥️ Multi-desktop support
     🔄 DBus watcher integration
 
 🔧 v4.4
@@ -232,7 +237,7 @@ sudo bash ~/NovaUnlock/uninstall.sh
 🔒 Privacy
 Aspect	Detail
 💾 Data Storage	Face data stored locally only: ~/NovaUnlock/data/faces/
-🌐 Network	No internet connection required after install
+🌐 Network	No internet required after install
 📊 Telemetry	Zero telemetry or tracking
 🔐 Control	Open enrollment — you control your data
 🛡️ Processing	100% on-device face recognition
