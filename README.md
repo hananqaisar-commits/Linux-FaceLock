@@ -1,95 +1,102 @@
+
 <div align="center">
 
 <img src="https://img.shields.io/badge/NovaUnlock-v4.6-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
-# NovaUnlock
+# 🔐 NovaUnlock
 
 **Premium Face Authentication for Linux**
 
 *Smart face unlock for Linux — local, private, and instant*
 
 [![Version](https://img.shields.io/badge/version-4.6-4a90d9?style=flat-square&logo=github)]()
-[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Kali%20%7C%20Fedora-27ae60?style=flat-square&logo=linux&logoColor=white)]()
-[![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square)]()
-[![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square)]()
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab?style=flat-square&logo=python&logoColor=white)]()
+[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Kali%20%7C%20Fedora%20%7C%20Debian-27ae60?style=flat-square&logo=linux&logoColor=white)]()
+[![Desktop](https://img.shields.io/badge/desktop-XFCE%20%7C%20GNOME%20%7C%20KDE%20%7C%20Cinnamon-e67e22?style=flat-square&logo=windowsterminal&logoColor=white)]()
+[![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square&logo=creativecommons&logoColor=white)]()
+[![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square&logo=statuspage&logoColor=white)]()
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-8e44ad?style=flat-square&logo=shield&logoColor=white)]()
+[![Build](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=githubactions&logoColor=white)]()
 
-[Download](#-quick-install) · [Features](#-features) · [Install](#-installation) · [Usage](#-usage) · [Troubleshoot](#-troubleshooting)
+[Download](#-quick-install-binary) · [Features](#-features) · [Install](#-installation) · [Usage](#-usage) · [Troubleshoot](#-troubleshooting)
 
 </div>
 
 ---
 
-## Overview
+## 🧬 Overview
 
 **NovaUnlock** brings smart face unlock to Linux. Look at your camera — you're in. No passwords, no delays, no cloud.
 
-> **100% local processing.** Your face data never leaves your machine. No telemetry, no network calls, no exceptions.
+> 🛡️ **100% local processing.** Your face data never leaves your machine. No telemetry, no network calls, no exceptions.
 
 ---
 
-## Features
+## 🎯 Features
 
 | Feature | Description |
-|---|---|
-| **Instant Face Unlock** | Look at camera to unlock lock screen |
-| **Auto Login at Boot** | Face recognition at GDM greeter screen |
-| **Multi-User Support** | One face profile per Linux user |
-| **Password Fallback** | Auto switch to password if face fails |
-| **Python 3.13** | Latest Python — maximum performance |
-| **GUI + CLI Enrollment** | GUI first, CLI fallback automatically |
+|:---:|:---|
+| 🔓 **Instant Face Unlock** | Look at camera to unlock lock screen |
+| 🖥️ **Auto Login at Boot** | Face recognition at LightDM/GDM greeter |
+| 👥 **Multi-User Support** | One face profile per Linux user |
+| 🔑 **Password Fallback** | Auto switch to password if face fails |
+| 🐍 **Python 3.13 Ready** | Latest Python — maximum performance |
+| 🎨 **Animated UI** | Beautiful Face ID style scanning animation |
+| 📷 **Auto Camera Detect** | USB & built-in webcam auto-detection |
+| 🔄 **DBus Watcher** | Auto-trigger on screen lock event |
+| 🛡️ **Liveness Detection** | Anti-spoofing protection |
+| 🧩 **PAM Integration** | Native PAM module for screen lock auth |
 
 ---
 
-## Supported Systems
+## 💻 Supported Systems
 
-| Distro | Desktop | Status |
-|--------|---------|--------|
-| Ubuntu 20.04+ | GNOME/GDM | ✅ Full Support |
-| Ubuntu 22.04+ | GNOME/GDM | ✅ Full Support |
-| Ubuntu 24.04+ | GNOME/GDM | ✅ Full Support |
-| Kali Linux | GNOME/XFCE | ✅ Full Support |
-| Fedora 38+ | GNOME/GDM | ✅ Full Support |
-| Debian 11+ | GNOME | ✅ Full Support |
+| Distro | Desktop | Display Manager | Status |
+|:---:|:---:|:---:|:---:|
+| ![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
+| ![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
+| ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
+| ![Kali](https://img.shields.io/badge/Kali-Latest-557C94?style=flat-square&logo=kalilinux&logoColor=white) | XFCE / GNOME | LightDM | 🟢 Full |
+| ![Fedora](https://img.shields.io/badge/Fedora-38+-51A2DA?style=flat-square&logo=fedora&logoColor=white) | GNOME | GDM | 🟢 Full |
+| ![Debian](https://img.shields.io/badge/Debian-11+-A81D33?style=flat-square&logo=debian&logoColor=white) | GNOME / XFCE | LightDM / GDM | 🟢 Full |
 
 ---
 
-## Installation
+## 📦 Installation
 
-### Method 1 — wget (Recommended, No Clone Needed)
+### Method 1 — wget (Recommended)
 
 ```bash
-wget -O nova_install.sh https://raw.githubusercontent.com/YOUR_USERNAME/NovaUnlock/main/install.sh
+wget -O nova_install.sh https://raw.githubusercontent.com/hananqaisar-commits/NovaUnlock/main/install.sh
 sudo bash nova_install.sh
 
 Method 2 — curl
 
 Bash
 
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/NovaUnlock/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hananqaisar-commits/NovaUnlock/main/install.sh | sudo bash
 
 Method 3 — Git Clone
 
 Bash
 
-git clone https://github.com/YOUR_USERNAME/NovaUnlock.git
+git clone https://github.com/hananqaisar-commits/NovaUnlock.git
 cd NovaUnlock
 sudo bash install.sh
 
-    ⚠️ Note: All 3 methods work the same way.
-    Installer auto-detects path — no manual path changes needed.
+    💡 Note: All 3 methods work the same way. Installer auto-detects path — no manual path changes needed.
 
-Quick Install (Binary)
+⚡ Quick Install (Binary)
 
 Download pre-built installer:
 
 Bash
 
-wget -O nova_unlock_installer https://github.com/YOUR_USERNAME/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v4.6
+wget -O nova_unlock_installer https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v4.6
 chmod +x nova_unlock_installer
 sudo ./nova_unlock_installer
 
-Usage
+🚀 Usage
 Step 1 — Install
 
 Bash
@@ -115,6 +122,17 @@ Step 3 — Lock Screen
 
 Press Super + L or:
 
+XFCE:
+
+Bash
+
+dbus-send --type=method_call \
+  --dest=org.xfce.ScreenSaver \
+  /org/xfce/ScreenSaver \
+  org.xfce.ScreenSaver.Lock
+
+GNOME:
+
 Bash
 
 dbus-send --type=method_call \
@@ -124,9 +142,9 @@ dbus-send --type=method_call \
 
 Step 4 — Face Unlock
 
-Look at camera — NovaUnlock unlocks automatically!
-Troubleshooting
-face_recognition_models Error
+Look at camera — NovaUnlock unlocks automatically! 🎉
+🔧 Troubleshooting
+🐍 face_recognition_models Error
 
 Bash
 
@@ -134,21 +152,31 @@ cd ~/NovaUnlock
 source .venv/bin/activate
 python3 scripts/patch_face_models_py313.pyc
 
-Watcher Service Not Running
+🔄 Watcher Service Not Running
 
 Bash
 
-systemctl --user daemon-reload
-systemctl --user enable --now nova-unlock-watcher.service
-systemctl --user status nova-unlock-watcher.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now nova-unlock-watcher.service
+sudo systemctl status nova-unlock-watcher.service
 
-Camera Not Found
+📷 Camera Not Found
 
 Bash
 
 ls /dev/video*
 
-Display/Qt Error
+🖥️ Display/Qt Error
+
+XFCE:
+
+Bash
+
+export DISPLAY=:0
+export QT_QPA_PLATFORM=xcb
+export XAUTHORITY=/home/$USER/.Xauthority
+
+GNOME/GDM:
 
 Bash
 
@@ -156,34 +184,79 @@ export DISPLAY=:1
 export QT_QPA_PLATFORM=xcb
 export XAUTHORITY=/run/user/1000/gdm/Xauthority
 
-Re-Enroll Face
+👤 Re-Enroll Face
 
 Bash
 
 python3 ~/NovaUnlock/scripts/enroll_entry.pyc --force
 
-Check Logs
+📋 Check Logs
 
 Bash
 
 cat ~/NovaUnlock/logs/install.log
-journalctl --user -u nova-unlock-watcher.service -n 50
+journalctl -u nova-unlock-watcher.service -n 50
 
-Uninstall
+🗑️ Uninstall
 
 Bash
 
 sudo bash ~/NovaUnlock/uninstall.sh
 
-Privacy
+📋 Changelog
+🔥 v4.6 (Latest)
 
-    ✅ Face data stored locally only: ~/NovaUnlock/data/faces/
-    ✅ No internet connection after install
-    ✅ No telemetry or tracking
-    ✅ Open enrollment — you control your data
+    🐍 Fixed Python 3.13 compatibility (setuptools, pkg_resources)
+    📦 Fixed face_recognition_models auto-install
+    🖥️ Fixed OpenCV GUI support (headless → full)
+    🔍 Auto PYTHONPATH detection
+    🛠️ Improved installer reliability (15/15 checks passing)
+    📝 Updated README with proper install commands
 
-License
+⚡ v4.5 → v4.6
+
+    🎨 New animated Face ID UI
+    🖥️ Multi-desktop support (XFCE, GNOME, KDE, Cinnamon)
+    🔄 DBus watcher integration
+
+🔧 v4.4
+
+    🔒 PAM authentication support
+    🖥️ LightDM greeter hooks
+
+🚀 v4.2
+
+    🎉 Initial release
+    🔓 Basic face recognition unlock
+
+🔒 Privacy
+Aspect	Detail
+💾 Data Storage	Face data stored locally only: ~/NovaUnlock/data/faces/
+🌐 Network	No internet connection required after install
+📊 Telemetry	Zero telemetry or tracking
+🔐 Control	Open enrollment — you control your data
+🛡️ Processing	100% on-device face recognition
+🛠️ System Requirements
+Requirement	Minimum
+💻 OS	Linux (Debian / Ubuntu / Kali / Fedora)
+🐍 Python	3.11 or higher
+📷 Camera	USB or built-in webcam
+🖥️ Desktop	XFCE / GNOME / KDE / Cinnamon
+🧠 RAM	2GB+
+💾 Disk	500MB free space
+📄 License
+
+text
 
 Proprietary — NovaUnlock v4.6
 © 2026 NovaUnlock Team
+All rights reserved.
 
+<div align="center">
+👨‍💻 Author
+
+Hanan Qaisar
+
+GitHub
+
+⭐ Star this repo if NovaUnlock made your Linux life easier!
