@@ -1,267 +1,273 @@
+# 🔓 NovaUnlock v5.2 — Face Lock System for Linux
 
+> Facial recognition login & lock screen for Linux desktops
+> Works on XFCE · GNOME · KDE · MATE · Cinnamon
+
+---
+
+## 🆕 Changelog — v5.2
+
+| Feature | Description |
+|---------|-------------|
+| 🔴 **Anti-Spoof Blink Liveness** | Adaptive EAR detection — rejects photos/screens/masks |
+| 🟠 **GTK Theme Auto-Switch** | Auto dark/light from gsettings · xfconf · gtk-3.0 |
+| 🟢 **Auto-Lock on Face Leave** | Locks screen after 10s of face absence |
+
+### 🔴 Liveness Detection
+- **Adaptive EAR calibration** — learns YOUR eye ratio in 30 frames
+- dlib 68-point landmarks (primary) + 5-strategy face detection
+- MediaPipe Tasks / Legacy / OpenCV Haar fallback chain
+- Rejects: printed photos, phone screens, static masks
+
+### 🟠 GTK Theme
+- Auto-detects dark/light at startup and every 6 seconds
+- Sources: gsettings → gtk-3.0/settings.ini → xfconf → GTK_THEME
+- Full Qt stylesheet for both modes
+
+### 🟢 Auto-Lock Guard
+- `FacePresenceGuard` — background thread monitors camera
+- Triggers screen lock after `FACE_LEAVE_TIMEOUT=10s`
+- Run: `python3 scripts/face_unlock_daemon.py --guard`
+
+---
+
+
+## 🆕 What's New in v5.2
+
+### 🔴 Feature 1 — Anti-Spoof Blink Liveness Detection
+- Eye Aspect Ratio (EAR) algorithm via MediaPipe FaceMesh
+- Rejects: printed photos, phone/tablet screens, static masks
+- Configurable blink count + timeout challenge
+- Real-time EAR overlay on camera feed
+
+### 🟠 Feature 2 — GTK Theme Auto-Switch
+- Auto-detects system dark/light theme at startup
+- Supports: gsettings, gtk-3.0/settings.ini, xfconf (XFCE), GTK_THEME env
+- Polls for runtime theme changes every 6 seconds
+- Full Qt stylesheet for dark + light palette
+- Singleton `get_theme()` available project-wide
+
+### 🟢 Feature 3 — Auto-Lock on Face Leave
+- Continuous face presence monitoring via background thread
+- Triggers screen lock when enrolled face absent for 10+ seconds
+- Run daemon in guard mode: `python3 scripts/face_unlock_daemon.py --guard`
+- Systemd service included for auto-start on login
+
+---
 <div align="center">
-
-<img src="https://img.shields.io/badge/NovaUnlock-v4.6-1a1a2e?style=for-the-badge&logo=linux&logoColor=white" alt="NovaUnlock"/>
 
 # 🔐 NovaUnlock
 
-**Premium Face Authentication for Linux**
+### Open-Source Face Authentication and Face Unlock System for Linux
 
-*Smart face unlock for Linux — local, private, and instant*
+Linux Face Unlock • Face Recognition Login • PAM Authentication System • Privacy-First Biometric Security
 
-[![Version](https://img.shields.io/badge/version-4.6-4a90d9?style=flat-square&logo=github)]()
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab?style=flat-square&logo=python&logoColor=white)]()
-[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Kali%20%7C%20Fedora%20%7C%20Debian-27ae60?style=flat-square&logo=linux&logoColor=white)]()
-[![Desktop](https://img.shields.io/badge/desktop-XFCE%20%7C%20GNOME%20%7C%20KDE%20%7C%20Cinnamon-e67e22?style=flat-square&logo=windowsterminal&logoColor=white)]()
-[![License](https://img.shields.io/badge/license-Proprietary-e74c3c?style=flat-square&logo=creativecommons&logoColor=white)]()
-[![Status](https://img.shields.io/badge/status-Production%20Ready-2ecc71?style=flat-square&logo=statuspage&logoColor=white)]()
-[![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-8e44ad?style=flat-square&logo=shield&logoColor=white)]()
-[![Build](https://img.shields.io/badge/build-passing%2016%2F16-brightgreen?style=flat-square&logo=githubactions&logoColor=white)]()
+---
 
-[Download](#-quick-install-binary) · [Features](#-features) · [Install](#-installation) · [Usage](#-usage) · [Troubleshoot](#-troubleshooting)
+![Version](https://img.shields.io/badge/version-4.6-4a90d9?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Linux-27ae60?style=flat-square&logo=linux&logoColor=white)
+![Desktop](https://img.shields.io/badge/desktop-GNOME%20%7C%20XFCE%20%7C%20KDE%20%7C%20Cinnamon-e67e22?style=flat-square)
+![Authentication](https://img.shields.io/badge/authentication-PAM-orange?style=flat-square)
+![Privacy](https://img.shields.io/badge/privacy-local%20processing-8e44ad?style=flat-square)
+![Status](https://img.shields.io/badge/status-active%20development-brightgreen?style=flat-square)
+![License](https://img.shields.io/badge/license-open--source-lightgrey?style=flat-square)
 
 </div>
 
 ---
 
-## 🧬 Overview
+## 📌 Project Overview
 
-**NovaUnlock** brings smart face unlock to Linux. Look at your camera — you're in. No passwords, no delays, no cloud.
+**NovaUnlock** is an open-source Linux face authentication and face recognition login system designed to integrate biometric authentication into Linux desktop environments.
 
-> 🛡️ **100% local processing.** Your face data never leaves your machine. No telemetry, no network calls, no exceptions.
+It enables users to authenticate system access using facial recognition through a webcam, integrated with Linux PAM (Pluggable Authentication Modules).
 
----
-
-## 🎯 Features
-
-| Feature | Description |
-|:---:|:---|
-| 🔓 **Instant Face Unlock** | Look at camera to unlock lock screen |
-| 🖥️ **Auto Login at Boot** | Face recognition at LightDM/GDM greeter |
-| 👥 **Multi-User Support** | One face profile per Linux user |
-| 🔑 **Password Fallback** | Auto switch to password if face fails |
-| 🐍 **Python 3.13 Ready** | Latest Python — maximum performance |
-| 🎨 **Animated Face ID UI** | Beautiful Face ID style scanning animation |
-| 📷 **Auto Camera Detect** | USB & built-in webcam auto-detection |
-| 🔄 **DBus Watcher** | Auto-trigger on screen lock event |
-| 🛡️ **Liveness Detection** | Anti-spoofing protection |
-| 🧩 **PAM Integration** | Native PAM module for screen lock auth |
+The system is designed for **local processing**, ensuring biometric data remains on the user’s device.
 
 ---
 
-## 💻 Supported Systems
+## 🔍 SEO Keywords (Important for Search Indexing)
 
-| Distro | Desktop | Display Manager | Status |
-|:---:|:---:|:---:|:---:|
-| ![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
-| ![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
-| ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white) | GNOME | GDM | 🟢 Full |
-| ![Kali](https://img.shields.io/badge/Kali-Latest-557C94?style=flat-square&logo=kalilinux&logoColor=white) | XFCE / GNOME | LightDM | 🟢 Full |
-| ![Fedora](https://img.shields.io/badge/Fedora-38+-51A2DA?style=flat-square&logo=fedora&logoColor=white) | GNOME | GDM | 🟢 Full |
-| ![Debian](https://img.shields.io/badge/Debian-11+-A81D33?style=flat-square&logo=debian&logoColor=white) | GNOME / XFCE | LightDM / GDM | 🟢 Full |
+This project targets the following search terms:
+
+- Linux Face Unlock
+- Linux Face Recognition Login
+- Face Authentication for Linux
+- Ubuntu Face Unlock System
+- PAM Face Authentication Linux
+- Biometric Login for Linux Desktop
+- Open Source Face Recognition System
+- Face Login Linux GitHub
+- AI Face Unlock Linux (if ML module enabled)
+
+---
+
+## 🎯 Core Features
+
+### 🔓 Face Authentication Login
+Authenticate Linux users using real-time facial recognition via webcam.
+
+### 🧩 PAM Integration
+Seamless integration with Linux **PAM (Pluggable Authentication Modules)** for system-level login and authentication.
+
+### 💾 Local Biometric Processing
+All face detection and recognition runs locally:
+
+- No cloud processing
+- No external API calls
+- No telemetry or tracking
+
+### 👥 Multi-User Support
+Supports multiple Linux user profiles with separate face data.
+
+### 🔑 Secure Password Fallback
+Automatically falls back to password authentication if face recognition fails.
+
+### 📷 Webcam Support
+Compatible with internal and external USB cameras.
+
+### 🖥️ Desktop Environment Support
+Tested on:
+
+- Ubuntu (GNOME)
+- Debian
+- Kali Linux (XFCE / GNOME)
+- Fedora
+- KDE Plasma (experimental support)
+
+---
+
+## 🧠 System Architecture
+
+NovaUnlock follows a modular authentication pipeline:
+
+- Face Detection Module (OpenCV)
+- Face Encoding Engine
+- User Enrollment System
+- Authentication Controller
+- PAM Integration Layer
+- Desktop Session Watcher
+
+### Authentication Flow
+
+1. User triggers login or screen lock
+2. PAM requests authentication module
+3. Webcam captures live input frame
+4. Face detection extracts facial region
+5. Feature encoding is generated
+6. Encoded vector is matched with stored profile
+7. Authentication result returned to PAM
 
 ---
 
 ## 📦 Installation
 
-### Method 1 — wget (Recommended)
+### Method 1 — Git Clone (Recommended)
 
 ```bash
-wget -O nova_install.sh https://raw.githubusercontent.com/hananqaisar-commits/NovaUnlock/main/install.sh
-sudo bash nova_install.sh
-
-Method 2 — curl
-
-Bash
-
-curl -fsSL https://raw.githubusercontent.com/hananqaisar-commits/NovaUnlock/main/install.sh | sudo bash
-
-Method 3 — Git Clone
-
-Bash
-
 git clone https://github.com/hananqaisar-commits/NovaUnlock.git
 cd NovaUnlock
 sudo bash install.sh
+Method 2 — Binary Release
+wget -O nova_unlock_installer \
+https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v4.6
 
-    💡 Note: All 3 methods work the same way. Installer auto-detects path.
-
-⚡ Quick Install (Binary)
-
-Bash
-
-wget -O nova_unlock_installer https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v4.6
 chmod +x nova_unlock_installer
 sudo ./nova_unlock_installer
-
-🚀 Usage
-Step 1 — Install
-
-Bash
-
+🚀 Quick Start Guide
+1. Install Dependencies
 sudo bash install.sh
+2. Enroll Face Profile
+cd ~/NovaUnlock
+source .venv/bin/activate
 
-Expected output:
-
-text
-
-✅ Passed : 16/16
-
-Step 2 — Enroll Face
-
-Bash
-
-cd ~/NovaUnlock && source .venv/bin/activate
 python3 scripts/enroll_gui.py
 
-Follow on-screen instructions:
+Capture multiple samples under different lighting conditions for better accuracy.
 
-    Look straight at camera
-    10 samples will be captured automatically
-    Face data saved to ~/NovaUnlock/data/faces/
-
-Step 3 — Test UI
-
-Bash
-
-source ~/NovaUnlock/.venv/bin/activate
-export DISPLAY=:0
+3. Test Face Authentication UI
 python3 ~/NovaUnlock/nova_unlock/ui/face_id_screen.py
-
-Step 4 — Lock Screen
+4. Lock System
 
 XFCE:
-
-Bash
 
 xflock4
 
 GNOME:
 
-Bash
-
 dbus-send --type=method_call \
-  --dest=org.gnome.ScreenSaver \
-  /org/gnome/ScreenSaver \
-  org.gnome.ScreenSaver.Lock
+--dest=org.gnome.ScreenSaver \
+/org/gnome/ScreenSaver \
+org.gnome.ScreenSaver.Lock
+5. Authenticate Using Face
 
-Step 5 — Face Unlock
+Look at the webcam → system performs face matching → login is granted automatically.
 
-Look at camera — NovaUnlock unlocks automatically! 🎉
-🔧 Troubleshooting
-🐍 face_recognition_models Error
+🔒 Security & Privacy Model
 
-Bash
+NovaUnlock is designed with a privacy-first architecture:
 
-cd ~/NovaUnlock
-source .venv/bin/activate
-python3 scripts/patch_face_models_py313.py
-
-🔄 Watcher Service Not Running
-
-Bash
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now nova-unlock-watcher.service
-sudo systemctl status nova-unlock-watcher.service
-
-📷 Camera Not Found
-
-Bash
-
-ls /dev/video*
-
-🖥️ Display/Qt Error
-
-XFCE:
-
-Bash
-
-export DISPLAY=:0
-export QT_QPA_PLATFORM=xcb
-export XAUTHORITY=/home/$USER/.Xauthority
-
-GNOME/GDM:
-
-Bash
-
-export DISPLAY=:1
-export QT_QPA_PLATFORM=xcb
-export XAUTHORITY=/run/user/1000/gdm/Xauthority
-
-👤 Re-Enroll Face
-
-Bash
-
-python3 ~/NovaUnlock/scripts/enroll_entry.py --force
-
-📋 Check Logs
-
-Bash
-
-cat ~/NovaUnlock/logs/install.log
-journalctl -u nova-unlock-watcher.service -n 50
-
-🗑️ Uninstall
-
-Bash
-
-sudo bash ~/NovaUnlock/uninstall.sh
-
-📋 Changelog
-🔥 v4.6 (Latest)
-
-    🎨 face_id_screen.py UI included in installer bundle
-    🐍 Fixed Python 3.13 compatibility (setuptools, pkg_resources)
-    📦 Fixed face_recognition_models install order
-    🖥️ Fixed OpenCV GUI support (headless → full)
-    🔍 Auto PYTHONPATH detection
-    🛠️ Installer 16/16 checks passing
-
-⚡ v4.5 → v4.6
-
-    🎨 New animated Face ID UI
-    🖥️ Multi-desktop support
-    🔄 DBus watcher integration
-
-🔧 v4.4
-
-    🔒 PAM authentication support
-    🖥️ LightDM greeter hooks
-
-🚀 v4.2
-
-    🎉 Initial release
-    🔓 Basic face recognition unlock
-
-🔒 Privacy
-Aspect	Detail
-💾 Data Storage	Face data stored locally only: ~/NovaUnlock/data/faces/
-🌐 Network	No internet required after install
-📊 Telemetry	Zero telemetry or tracking
-🔐 Control	Open enrollment — you control your data
-🛡️ Processing	100% on-device face recognition
+Component	Behavior
+Face Data Storage	Local filesystem only
+Network Usage	Not required after installation
+External APIs	Not used
+Telemetry	None
+Biometric Control	User-owned data
 🛠️ System Requirements
 Requirement	Minimum
-💻 OS	Linux (Debian / Ubuntu / Kali / Fedora)
-🐍 Python	3.11 or higher
-📷 Camera	USB or built-in webcam
-🖥️ Desktop	XFCE / GNOME / KDE / Cinnamon
-🧠 RAM	2GB+
-💾 Disk	500MB free space
+Operating System	Linux (Ubuntu / Debian / Fedora / Kali)
+Python Version	3.11 or higher
+Camera	USB or built-in webcam
+RAM	2GB+
+Desktop Environment	GNOME / XFCE / KDE / Cinnamon
+📊 Project Status
+
+NovaUnlock is under active development.
+
+Current focus areas:
+
+Improving face recognition accuracy
+Expanding Linux distribution compatibility
+Strengthening PAM integration
+Enhancing system stability
+Improving authentication speed
+⚠️ Known Limitations
+Performance depends on lighting conditions
+Webcam quality affects recognition accuracy
+Liveness detection is implementation-dependent
+Some desktop environments require manual configuration
+🤝 Contributing
+
+Contributions are welcome.
+
+You can contribute by:
+
+Improving face recognition pipeline
+Fixing Linux compatibility issues
+Enhancing PAM integration
+Improving documentation and examples
+Reporting bugs and issues
+📈 GitHub Topics (Add These in Repo Settings)
+
+Add these in your GitHub repository topics:
+
+linux-face-unlock
+face-recognition
+face-authentication
+linux-login
+pam-module
+biometric-authentication
+ubuntu-face-unlock
+opencv-python
+python-project
+linux-security
 📄 License
 
-text
+This project is open-source. Refer to the LICENSE file for full terms.
 
-Proprietary — NovaUnlock v4.6
-© 2026 NovaUnlock Team
-All rights reserved.
-
-<div align="center">
 👨‍💻 Author
 
 Hanan Qaisar
 
-GitHub
-
-⭐ Star this repo if NovaUnlock made your Linux life easier!
+GitHub: https://github.com/hananqaisar-commits

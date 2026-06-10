@@ -1,0 +1,2663 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaUnlock — Face ID for Linux. Atelier Edition.</title>
+    <meta name="description"
+        content="The future of Linux authentication. Hand-crafted Face ID experience built to atelier-grade standards.">
+
+    <meta property="og:title" content="NovaUnlock — Face ID for Linux">
+    <meta property="og:description" content="Unlock with a glance. Atelier Edition.">
+    <meta property="og:type" content="website">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.0.42/dist/lenis.min.js"></script>
+
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+   RESET + ROOT
+   ═══════════════════════════════════════════════════════════ */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            cursor: none;
+            transition: background 0.4s, color 0.4s;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   PARTICLE CURSOR SYSTEM (Antigravity-style)
+   ═══════════════════════════════════════════════════════════ */
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        .cursor-core {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: difference;
+            will-change: transform;
+            transition: width 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                height 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .cursor-ring {
+            position: fixed;
+            width: 36px;
+            height: 36px;
+            border: 1.2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: difference;
+            will-change: transform;
+            transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.3s;
+        }
+
+        .cursor-core.expand {
+            width: 14px;
+            height: 14px;
+        }
+
+        .cursor-ring.expand {
+            width: 70px;
+            height: 70px;
+            border-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .cursor-core.click {
+            width: 30px;
+            height: 30px;
+        }
+
+        @media (hover: none) {
+            body {
+                cursor: auto;
+            }
+
+            .cursor-core,
+            .cursor-ring,
+            #particle-canvas {
+                display: none;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   THEME TOKENS
+   ═══════════════════════════════════════════════════════════ */
+        [data-theme="dark"] {
+            --bg: #000000;
+            --bg-elev: #0a0a0d;
+            --bg-card: rgba(20, 20, 25, 0.55);
+            --bg-glass: rgba(255, 255, 255, 0.04);
+            --bg-glass-hover: rgba(255, 255, 255, 0.08);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.16);
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.7);
+            --text-quiet: rgba(255, 255, 255, 0.4);
+            --accent: #0a84ff;
+            --accent-hi: #4099ff;
+            --accent-glow: rgba(10, 132, 255, 0.5);
+            --green: #30d158;
+            --purple: #bf5af2;
+            --pink: #ff375f;
+            --orange: #ff9f0a;
+            --gold: #d4af37;
+            --mesh-1: rgba(10, 132, 255, 0.18);
+            --mesh-2: rgba(191, 90, 242, 0.14);
+            --mesh-3: rgba(255, 55, 95, 0.08);
+            --particle-color: '255, 255, 255';
+        }
+
+        [data-theme="light"] {
+            --bg: #f7f7f9;
+            --bg-elev: #ffffff;
+            --bg-card: rgba(255, 255, 255, 0.7);
+            --bg-glass: rgba(0, 0, 0, 0.03);
+            --bg-glass-hover: rgba(0, 0, 0, 0.06);
+            --border: rgba(0, 0, 0, 0.08);
+            --border-strong: rgba(0, 0, 0, 0.15);
+            --text: #0a0a0d;
+            --text-dim: rgba(0, 0, 0, 0.7);
+            --text-quiet: rgba(0, 0, 0, 0.4);
+            --accent: #007aff;
+            --accent-hi: #2891ff;
+            --accent-glow: rgba(0, 122, 255, 0.3);
+            --green: #34c759;
+            --purple: #af52de;
+            --pink: #ff2d55;
+            --orange: #ff9500;
+            --gold: #b8860b;
+            --mesh-1: rgba(0, 122, 255, 0.1);
+            --mesh-2: rgba(175, 82, 222, 0.08);
+            --mesh-3: rgba(255, 45, 85, 0.05);
+            --particle-color: '10, 132, 255';
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   PREMIUM LOADER
+   ═══════════════════════════════════════════════════════════ */
+        .loader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            transition: opacity 0.8s, visibility 0.8s;
+        }
+
+        .loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loader-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0a84ff, #bf5af2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(10, 132, 255, 0.4);
+            animation: pulseScale 2s ease-in-out infinite;
+        }
+
+        .loader-mark svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        @keyframes pulseScale {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+        }
+
+        .loader-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.4em;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .loader-bar {
+            width: 220px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #0a84ff, #bf5af2, transparent);
+            animation: loaderFill 1.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+        }
+
+        @keyframes loaderFill {
+            to {
+                left: 100%;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   GLOBAL EFFECTS
+   ═══════════════════════════════════════════════════════════ */
+        .gradient-mesh {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .mesh-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.7;
+            will-change: transform;
+        }
+
+        .mesh-blob.b1 {
+            width: 700px;
+            height: 700px;
+            background: var(--mesh-1);
+            top: -250px;
+            left: -200px;
+            animation: meshFloat 22s ease-in-out infinite;
+        }
+
+        .mesh-blob.b2 {
+            width: 600px;
+            height: 600px;
+            background: var(--mesh-2);
+            top: 30%;
+            right: -200px;
+            animation: meshFloat 28s ease-in-out infinite -8s;
+        }
+
+        .mesh-blob.b3 {
+            width: 500px;
+            height: 500px;
+            background: var(--mesh-3);
+            bottom: -150px;
+            left: 30%;
+            animation: meshFloat 25s ease-in-out infinite -14s;
+        }
+
+        @keyframes meshFloat {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(80px, -60px) scale(1.15);
+            }
+
+            66% {
+                transform: translate(-40px, 80px) scale(0.92);
+            }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+            opacity: 0.025;
+            pointer-events: none;
+            z-index: 1000;
+            mix-blend-mode: overlay;
+        }
+
+        /* Subtle grid pattern overlay */
+        .grid-pattern {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: -1;
+            mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   NAV (Apple style sticky glass)
+   ═══════════════════════════════════════════════════════════ */
+        nav {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 7px 7px 7px 24px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            opacity: 0;
+            transform: translateX(-50%) translateY(-100%);
+            transition: opacity 0.6s, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        nav.ready {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+            color: var(--text);
+            text-decoration: none;
+            padding-right: 22px;
+            border-right: 1px solid var(--border);
+            margin-right: 8px;
+        }
+
+        .brand-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px var(--accent-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-mark::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.35), transparent 60%);
+        }
+
+        .brand-mark svg {
+            width: 17px;
+            height: 17px;
+            fill: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-edition {
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            padding: 3px 7px;
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            opacity: 0.85;
+        }
+
+        .nav-link {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 9px 14px;
+            border-radius: 100px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+            background: var(--bg-glass);
+        }
+
+        .nav-cta {
+            background: var(--text);
+            color: var(--bg) !important;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 13px;
+            text-decoration: none;
+            margin-left: 4px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-cta::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(10, 132, 255, 0.5), rgba(191, 90, 242, 0.5));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .nav-cta:hover {
+            transform: scale(1.04);
+        }
+
+        .nav-cta:hover::before {
+            opacity: 0.3;
+        }
+
+        .theme-toggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-glass);
+            border: none;
+            cursor: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            color: var(--text);
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-glass-hover);
+            transform: rotate(20deg);
+        }
+
+        .theme-toggle svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   HERO (Antigravity-style 3D scene)
+   ═══════════════════════════════════════════════════════════ */
+        .hero {
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #three-canvas {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.6) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 0 32px;
+            max-width: 1200px;
+            pointer-events: none;
+        }
+
+        .hero-content>* {
+            pointer-events: auto;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 7px 7px 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--border-strong);
+            border-radius: 100px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 36px;
+            opacity: 0;
+            transform: translateY(20px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero-badge-pill {
+            background: linear-gradient(135deg, var(--gold), #f4d76e);
+            color: #1a1500;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 12px var(--green);
+            animation: pulse 1.6s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 12px currentColor;
+            }
+
+            50% {
+                opacity: 0.4;
+                box-shadow: 0 0 4px currentColor;
+            }
+        }
+
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(60px, 10vw, 140px);
+            font-weight: 700;
+            letter-spacing: -0.05em;
+            line-height: 0.92;
+            margin-bottom: 32px;
+            background: linear-gradient(180deg, var(--text) 0%, var(--text) 40%, var(--text-dim) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h1 .word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(80px);
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 50%, var(--pink) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: gradientShift 8s ease infinite;
+        }
+
+        @keyframes gradientShift {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .hero-sub {
+            font-size: clamp(17px, 2vw, 22px);
+            color: var(--text-dim);
+            max-width: 600px;
+            line-height: 1.55;
+            margin: 0 auto 44px;
+            opacity: 0;
+            transform: translateY(20px);
+            font-weight: 400;
+        }
+
+        .hero-sub strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            margin-bottom: 60px;
+        }
+
+        .hero-trust {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+            opacity: 0;
+            transform: translateY(20px);
+            font-size: 12px;
+            color: var(--text-quiet);
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .hero-trust-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-trust-item svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--green);
+            fill: none;
+            stroke-width: 2.5;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 30px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 14.5px;
+            text-decoration: none;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: none;
+            border: none;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: -0.005em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hi) 100%);
+            color: white;
+            box-shadow: 0 16px 40px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn-primary:hover::before {
+            opacity: 1;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 24px 60px var(--accent-glow);
+        }
+
+        .btn-glass {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+        }
+
+        .btn-glass:hover {
+            background: var(--bg-glass-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .scroll-hint {
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-quiet);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            opacity: 0;
+            z-index: 3;
+        }
+
+        .scroll-hint-line {
+            width: 1px;
+            height: 32px;
+            background: linear-gradient(180deg, var(--text-quiet), transparent);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scroll-hint-line::after {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: var(--accent);
+            animation: scrollLine 2s ease-in-out infinite;
+        }
+
+        @keyframes scrollLine {
+            to {
+                top: 100%;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   MARQUEE
+   ═══════════════════════════════════════════════════════════ */
+        .marquee {
+            padding: 22px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-glass);
+            overflow: hidden;
+            white-space: nowrap;
+            backdrop-filter: blur(20px);
+        }
+
+        .marquee-inner {
+            display: inline-block;
+            animation: marqueeScroll 32s linear infinite;
+        }
+
+        .marquee span {
+            display: inline-block;
+            padding: 0 28px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 17px;
+            font-weight: 500;
+            color: var(--text-dim);
+            letter-spacing: -0.01em;
+        }
+
+        .marquee span::after {
+            content: '✦';
+            color: var(--accent);
+            margin-left: 56px;
+            font-size: 14px;
+        }
+
+        @keyframes marqueeScroll {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════════════════════════ */
+        .section {
+            padding: 140px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .section-header {
+            margin-bottom: 70px;
+            max-width: 820px;
+        }
+
+        .section-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            padding: 7px 14px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+        }
+
+        .section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(40px, 6vw, 84px);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1.0;
+            margin-bottom: 24px;
+        }
+
+        .section h2 .gradient-text {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-lead {
+            font-size: 19px;
+            color: var(--text-dim);
+            line-height: 1.55;
+            max-width: 660px;
+            font-weight: 400;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   SHOWCASE — Live UI Demo
+   ═══════════════════════════════════════════════════════════ */
+        .showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+            margin-bottom: 120px;
+        }
+
+        .showcase-text h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 44px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+            margin-bottom: 22px;
+        }
+
+        .showcase-text p {
+            font-size: 17px;
+            color: var(--text-dim);
+            line-height: 1.65;
+            margin-bottom: 20px;
+        }
+
+        .showcase-features {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-top: 28px;
+        }
+
+        .showcase-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-dim);
+            font-size: 14.5px;
+        }
+
+        .showcase-feature-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .showcase-feature-check svg {
+            width: 11px;
+            height: 11px;
+            stroke: white;
+            stroke-width: 3.5;
+            fill: none;
+        }
+
+        .device-stage {
+            position: relative;
+            perspective: 2000px;
+        }
+
+        .device {
+            position: relative;
+            background: linear-gradient(145deg, #1a1a1e, #0a0a0c);
+            border-radius: 32px;
+            padding: 11px;
+            box-shadow:
+                0 50px 100px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform-style: preserve-3d;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .device-screen {
+            background: #000;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 9 / 13;
+            width: 380px;
+        }
+
+        .ui-mock {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 0%, #0a0e1a, #000 70%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+            position: relative;
+        }
+
+        .ui-pill {
+            width: 160px;
+            height: 30px;
+            background: #0a0a0e;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+        }
+
+        .ui-pill-lock {
+            width: 10px;
+            height: 8px;
+            background: white;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .ui-pill-lock::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 7px;
+            height: 6px;
+            border: 1.3px solid white;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .ui-pill-text {
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+        }
+
+        .ui-pill-dot {
+            width: 7px;
+            height: 7px;
+            background: #0a84ff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #0a84ff;
+            animation: pulse 2s infinite;
+        }
+
+        .ui-face-area {
+            margin-top: 48px;
+            width: 200px;
+            height: 200px;
+            position: relative;
+        }
+
+        .ui-face-circle {
+            position: absolute;
+            inset: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #3a3d4c, #15171e);
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5), 0 0 40px rgba(10, 132, 255, 0.15);
+        }
+
+        .ui-face-features {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ui-face-features svg {
+            width: 70%;
+            height: 70%;
+            stroke: white;
+            stroke-width: 5;
+            stroke-linecap: round;
+            fill: none;
+        }
+
+        .ui-arcs {
+            position: absolute;
+            inset: 0;
+        }
+
+        .ui-arc-segment {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            transform-origin: center 100px;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .ui-arc-segment.active {
+            background: #30d158;
+            box-shadow: 0 0 12px rgba(48, 209, 88, 0.8);
+        }
+
+        .ui-status {
+            margin-top: 36px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            transition: color 0.3s;
+        }
+
+        .ui-substatus {
+            margin-top: 6px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        .ui-counter {
+            margin-top: 16px;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   BENTO GRID
+   ═══════════════════════════════════════════════════════════ */
+        .bento {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 200px;
+            gap: 14px;
+            margin-top: 70px;
+        }
+
+        .bento-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: none;
+        }
+
+        .bento-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            pointer-events: none;
+        }
+
+        .bento-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-strong);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .bento-card:hover::before {
+            opacity: 0.4;
+        }
+
+        .bento-card.large {
+            grid-column: span 2;
+            grid-row: span 2;
+        }
+
+        .bento-card.wide {
+            grid-column: span 2;
+        }
+
+        .bento-card.tall {
+            grid-row: span 2;
+        }
+
+        .bento-card h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .bento-card.large h3 {
+            font-size: 34px;
+        }
+
+        .bento-card p {
+            color: var(--text-dim);
+            font-size: 13.5px;
+            line-height: 1.55;
+            position: relative;
+        }
+
+        .bento-card.large p {
+            font-size: 16px;
+        }
+
+        .bento-visual {
+            position: absolute;
+            right: -10px;
+            bottom: -10px;
+            pointer-events: none;
+            opacity: 0.18;
+            transition: opacity 0.4s, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .bento-card:hover .bento-visual {
+            opacity: 0.5;
+            transform: translate(-15px, -15px) rotate(10deg);
+        }
+
+        .bento-visual svg {
+            width: 180px;
+            height: 180px;
+            stroke: var(--accent);
+            fill: none;
+            stroke-width: 1.2;
+        }
+
+        .bento-visual.small svg {
+            width: 80px;
+            height: 80px;
+        }
+
+        .bento-card .icon-circle {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hi));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+            box-shadow: 0 10px 24px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .bento-card .icon-circle svg {
+            width: 26px;
+            height: 26px;
+            stroke: white;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   STATS
+   ═══════════════════════════════════════════════════════════ */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            padding: 70px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            margin: 100px 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(48px, 6vw, 88px);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-dim) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .stat-num .unit {
+            font-size: 0.5em;
+            color: var(--text-quiet);
+            -webkit-text-fill-color: var(--text-quiet);
+            margin-left: 4px;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   INSTALL
+   ═══════════════════════════════════════════════════════════ */
+        .install-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 28px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            padding: 6px;
+            border-radius: 14px;
+            width: fit-content;
+        }
+
+        .install-tab {
+            padding: 11px 22px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-weight: 600;
+            font-size: 13.5px;
+            border-radius: 10px;
+            cursor: none;
+            font-family: inherit;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .install-tab svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .install-tab:hover {
+            color: var(--text);
+        }
+
+        .install-tab.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hi));
+            color: white;
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .install-panel {
+            display: none;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .install-panel.active {
+            display: block;
+        }
+
+        .install-header {
+            padding: 22px 28px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .install-header h4 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .copy-btn {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-strong);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .copy-btn svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .install-code {
+            padding: 26px 28px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.85;
+            overflow-x: auto;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .install-code .comment {
+            color: var(--text-quiet);
+        }
+
+        .install-code .cmd {
+            color: var(--accent-hi);
+        }
+
+        .install-code .str {
+            color: var(--green);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   MEGA CTA
+   ═══════════════════════════════════════════════════════════ */
+        .cta-mega {
+            text-align: center;
+            padding: 110px 32px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 36px;
+            background: linear-gradient(135deg, var(--bg-elev) 0%, var(--bg) 100%);
+            border: 1px solid var(--border);
+            margin: 80px auto;
+            max-width: 1000px;
+        }
+
+        .cta-mega::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, var(--accent-glow), transparent 60%);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .cta-mega h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(40px, 6vw, 68px);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        .cta-mega p {
+            color: var(--text-dim);
+            font-size: 17px;
+            margin-bottom: 44px;
+            position: relative;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn-mega {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            padding: 20px 44px;
+            background: var(--text);
+            color: var(--bg);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 100px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .btn-mega:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-mega svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+        footer {
+            padding: 70px 32px 36px;
+            border-top: 1px solid var(--border);
+            margin-top: 60px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 44px;
+        }
+
+        .footer-brand h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .footer-brand p {
+            color: var(--text-dim);
+            font-size: 13.5px;
+            max-width: 320px;
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }
+
+        .footer-edition {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border: 1px solid var(--gold);
+            border-radius: 100px;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        .footer-col h5 {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-quiet);
+            margin-bottom: 16px;
+        }
+
+        .footer-col a {
+            display: block;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13.5px;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-quiet);
+            font-size: 12.5px;
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .footer-status .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 1.8s infinite;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+        @media (max-width: 1024px) {
+            .bento {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .showcase {
+                grid-template-columns: 1fr;
+            }
+
+            .device-screen {
+                width: 100%;
+                max-width: 360px;
+                margin: 0 auto;
+            }
+
+            .footer-inner {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                width: calc(100% - 24px);
+                padding: 8px;
+                border-radius: 24px;
+                flex-wrap: wrap;
+            }
+
+            .brand {
+                font-size: 14px;
+                padding-right: 14px;
+            }
+
+            .nav-link:not(.nav-cta):not(.theme-toggle) {
+                display: none;
+            }
+
+            .section {
+                padding: 90px 20px;
+            }
+
+            .bento {
+                grid-template-columns: 1fr;
+                grid-auto-rows: auto;
+            }
+
+            .bento-card.large,
+            .bento-card.wide,
+            .bento-card.tall {
+                grid-column: span 1;
+                grid-row: span 1;
+            }
+
+            .footer-inner {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            body {
+                cursor: auto;
+            }
+
+            .cursor-core,
+            .cursor-ring,
+            #particle-canvas {
+                display: none;
+            }
+
+            .hero-trust {
+                gap: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LOADER -->
+    <div class="loader" id="loader">
+        <div class="loader-mark">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2L4 6v6c0 5 4 9 8 10 4-1 8-5 8-10V6l-8-4z" />
+            </svg>
+        </div>
+        <div class="loader-text">NOVA · ATELIER EDITION</div>
+        <div class="loader-bar"></div>
+    </div>
+
+    <!-- PARTICLE CURSOR CANVAS -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Custom Cursor -->
+    <div class="cursor-ring"></div>
+    <div class="cursor-core"></div>
+
+    <!-- Grid + Gradient background -->
+    <div class="grid-pattern"></div>
+    <div class="gradient-mesh">
+        <div class="mesh-blob b1"></div>
+        <div class="mesh-blob b2"></div>
+        <div class="mesh-blob b3"></div>
+    </div>
+
+    <!-- NAV -->
+    <nav id="nav">
+        <a href="#" class="brand">
+            <div class="brand-mark">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L4 6v6c0 5 4 9 8 10 4-1 8-5 8-10V6l-8-4z" />
+                </svg>
+            </div>
+            <div class="brand-text">
+                Nova
+                <span class="brand-edition">L99</span>
+            </div>
+        </a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#demo" class="nav-link">Preview</a>
+        <a href="#install" class="nav-link">Install</a>
+        <a href="https://github.com/hananqaisar-commits/NovaUnlock" class="nav-link" target="_blank">GitHub</a>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <svg id="theme-icon" viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+        </button>
+        <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases/latest" class="nav-cta">Get Nova</a>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <canvas id="three-canvas"></canvas>
+        <div class="hero-vignette"></div>
+        <div class="hero-content">
+            <div class="hero-badge" id="hero-badge">
+                <span class="hero-badge-pill">ATELIER</span>
+                <span>v4.7 · Limited Edition L99</span>
+                <span class="hero-badge-dot"></span>
+            </div>
+            <h1>
+                <span class="word">Unlock</span>
+                <span class="word">Linux</span>
+                <br>
+                <span class="word gradient-text">with a glance.</span>
+            </h1>
+            <p class="hero-sub" id="hero-sub">
+                The Face ID experience your Linux deserved. <strong>Hand-crafted</strong> to atelier-grade standards.
+                Reliable, secure, stable. <strong>Free forever.</strong>
+            </p>
+            <div class="hero-actions" id="hero-actions">
+                <a href="#install" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    Install NovaUnlock
+                </a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock" target="_blank" class="btn btn-glass">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z" />
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
+            <div class="hero-trust" id="hero-trust">
+                <div class="hero-trust-item">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>MIT Licensed</span>
+                </div>
+                <div class="hero-trust-item">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>100% On-Device</span>
+                </div>
+                <div class="hero-trust-item">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Zero Telemetry</span>
+                </div>
+                <div class="hero-trust-item">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>8MB Install</span>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-hint" id="scroll-hint">
+            <span>Scroll</span>
+            <div class="scroll-hint-line"></div>
+        </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee">
+        <div class="marquee-inner">
+            <span>Hand-Crafted in Code</span>
+            <span>Atelier Edition · L99</span>
+            <span>Engineered for Linux</span>
+            <span>Inspired by Apple</span>
+            <span>Open Source Forever</span>
+            <span>Reliable · Secure · Stable</span>
+            <span>Hand-Crafted in Code</span>
+            <span>Atelier Edition · L99</span>
+            <span>Engineered for Linux</span>
+            <span>Inspired by Apple</span>
+            <span>Open Source Forever</span>
+            <span>Reliable · Secure · Stable</span>
+        </div>
+    </div>
+
+    <!-- SHOWCASE -->
+    <section class="section" id="demo">
+        <div class="section-header">
+            <span class="section-tag">⚡ Live Preview</span>
+            <h2>Designed to <span class="gradient-text">disappear.</span></h2>
+            <p class="section-lead">The best technology vanishes into the experience. Face Unlock that's so fast and so
+                reliable, you'll forget your computer was ever locked.</p>
+        </div>
+
+        <div class="showcase">
+            <div class="showcase-text">
+                <h3>Face ID for your desktop.</h3>
+                <p>Look at your screen. You're in. That's it. No passwords. No fingerprints. No fumbling with hardware
+                    keys.</p>
+                <p>NovaUnlock uses TrueDepth-quality face recognition with 100% on-device processing. Your face never
+                    leaves your hardware.</p>
+                <div class="showcase-features">
+                    <div class="showcase-feature">
+                        <div class="showcase-feature-check"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>
+                        <span>Unlocks in under 200 milliseconds</span>
+                    </div>
+                    <div class="showcase-feature">
+                        <div class="showcase-feature-check"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>
+                        <span>Works in low light & varied conditions</span>
+                    </div>
+                    <div class="showcase-feature">
+                        <div class="showcase-feature-check"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>
+                        <span>Multiple user profiles supported</span>
+                    </div>
+                    <div class="showcase-feature">
+                        <div class="showcase-feature-check"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>
+                        <span>Anti-spoof liveness detection</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="device-stage">
+                <div class="device">
+                    <div class="device-screen">
+                        <div class="ui-mock">
+                            <div class="ui-pill">
+                                <div class="ui-pill-lock"></div>
+                                <div class="ui-pill-text">NOVA</div>
+                                <div class="ui-pill-dot"></div>
+                            </div>
+                            <div class="ui-face-area">
+                                <div class="ui-arcs" id="ui-arcs"></div>
+                                <div class="ui-face-circle">
+                                    <div class="ui-face-features">
+                                        <svg viewBox="0 0 100 100">
+                                            <line x1="32" y1="38" x2="32" y2="50" />
+                                            <line x1="68" y1="38" x2="68" y2="50" />
+                                            <path d="M 35 65 Q 50 75 65 65" stroke-linejoin="round" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-status" id="ui-status">Face ID</div>
+                            <div class="ui-substatus" id="ui-substatus">Move your head slowly</div>
+                            <div class="ui-counter" id="ui-counter">0 of 16</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="section">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-num" data-count="200">200<span class="unit">ms</span></div>
+                <div class="stat-label">Unlock Time</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" data-count="100">100<span class="unit">%</span></div>
+                <div class="stat-label">On-Device</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" data-count="16">16</div>
+                <div class="stat-label">Arc Segments</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" data-count="60">60<span class="unit">fps</span></div>
+                <div class="stat-label">Locked Smooth</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENTO FEATURES -->
+    <section class="section" id="features">
+        <div class="section-header">
+            <span class="section-tag">✦ Why Nova</span>
+            <h2>Premium engineering.<br><span class="gradient-text">Uncompromising privacy.</span></h2>
+            <p class="section-lead">Built with the same obsessive attention to detail you'd find in a $400,000 timepiece
+                — yet completely free and open source.</p>
+        </div>
+
+        <div class="bento">
+            <div class="bento-card large">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linejoin="round" />
+                        <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <h3>Privacy by design</h3>
+                <p>Your face data never leaves your device. No cloud sync. No telemetry. No analytics. Encrypted with
+                    256-bit security, stored only locally.</p>
+                <div class="bento-visual">
+                    <svg viewBox="0 0 200 200">
+                        <circle cx="100" cy="100" r="80" />
+                        <circle cx="100" cy="100" r="60" />
+                        <circle cx="100" cy="100" r="40" />
+                        <circle cx="100" cy="100" r="20" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bento-card">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <h3>Lightning fast</h3>
+                <p>200ms unlock. Faster than typing.</p>
+            </div>
+
+            <div class="bento-card">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M4 12a8 8 0 0116 0M12 4v0M12 20v0" />
+                    </svg>
+                </div>
+                <h3>Pixel perfect</h3>
+                <p>Hand-tuned at locked 60fps.</p>
+            </div>
+
+            <div class="bento-card wide">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                </div>
+                <h3>MIT Licensed Open Source</h3>
+                <p>Audit the code. Customize freely. Trust through transparency — not corporate promises.</p>
+            </div>
+
+            <div class="bento-card tall">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </div>
+                <h3>Works everywhere</h3>
+                <p>XFCE, GNOME, KDE, Cinnamon, MATE. LightDM, GDM, SDDM. Tested across every major Linux desktop.</p>
+                <div class="bento-visual small">
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="30" />
+                        <circle cx="50" cy="50" r="20" />
+                        <circle cx="50" cy="50" r="10" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bento-card">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                    </svg>
+                </div>
+                <h3>Crafted with love</h3>
+                <p>Every release hand-tested.</p>
+            </div>
+
+            <div class="bento-card wide">
+                <div class="icon-circle">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg>
+                </div>
+                <h3>Setup in 60 seconds</h3>
+                <p>Download → install → enroll your face. Three steps. One minute. You're done.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section class="section" id="install">
+        <div class="section-header">
+            <span class="section-tag">⬇ Get Started</span>
+            <h2>Install in <span class="gradient-text">seconds.</span></h2>
+            <p class="section-lead">Three ways to get NovaUnlock. Pick what suits your workflow.</p>
+        </div>
+
+        <div class="install-tabs">
+            <button class="install-tab active" onclick="showInstall('wget', this)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                wget
+            </button>
+            <button class="install-tab" onclick="showInstall('curl', this)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                curl
+            </button>
+            <button class="install-tab" onclick="showInstall('git', this)">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v7M5 12h7" />
+                </svg>
+                git clone
+            </button>
+        </div>
+
+        <div class="install-panel active" id="install-wget">
+            <div class="install-header">
+                <h4>Quick install with wget</h4>
+                <button class="copy-btn" onclick="copyCode('code-wget', this)">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <pre class="install-code" id="code-wget"><span class="comment"># Download the installer</span>
+<span class="cmd">wget</span> https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6
+
+<span class="comment"># Make executable and run</span>
+<span class="cmd">chmod</span> +x nova_unlock_installer_v4.6
+<span class="cmd">sudo</span> ./nova_unlock_installer_v4.6</pre>
+        </div>
+
+        <div class="install-panel" id="install-curl">
+            <div class="install-header">
+                <h4>One-line install with curl</h4>
+                <button class="copy-btn" onclick="copyCode('code-curl', this)">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <pre class="install-code" id="code-curl"><span class="comment"># Download with curl</span>
+<span class="cmd">curl</span> -L -o nova_installer \
+  https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6
+
+<span class="comment"># Install</span>
+<span class="cmd">chmod</span> +x nova_installer && <span class="cmd">sudo</span> ./nova_installer</pre>
+        </div>
+
+        <div class="install-panel" id="install-git">
+            <div class="install-header">
+                <h4>Clone the repository</h4>
+                <button class="copy-btn" onclick="copyCode('code-git', this)">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <pre class="install-code" id="code-git"><span class="comment"># Clone the repository</span>
+<span class="cmd">git</span> clone https://github.com/hananqaisar-commits/NovaUnlock.git
+<span class="cmd">cd</span> NovaUnlock
+
+<span class="comment"># Run the installer</span>
+<span class="cmd">sudo</span> ./releases/nova_unlock_installer_v4.6</pre>
+        </div>
+
+        <!-- MEGA CTA -->
+        <div class="cta-mega">
+            <h3>Ready to <span class="gradient-text">unlock the future?</span></h3>
+            <p>Free. Open source. Atelier-grade quality. Just 8MB.</p>
+            <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6"
+                class="btn-mega">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                Download v4.7 · 8MB
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <h4>Nova<span class="gradient-text">Unlock</span></h4>
+                <p>The Face ID experience your Linux deserved. Hand-crafted with the obsessive attention to detail you'd
+                    find in a luxury timepiece.</p>
+                <div class="footer-edition">✦ Atelier Edition · L99</div>
+            </div>
+            <div class="footer-col">
+                <h5>Product</h5>
+                <a href="#features">Features</a>
+                <a href="#demo">Preview</a>
+                <a href="#install">Install</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases">Releases</a>
+            </div>
+            <div class="footer-col">
+                <h5>Support</h5>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/issues">Issues</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/discussions">Discussions</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/wiki">Documentation</a>
+            </div>
+            <div class="footer-col">
+                <h5>Connect</h5>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock">GitHub</a>
+                <a href="https://github.com/hananqaisar-commits">@hananqaisar-commits</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>© 2026 NovaUnlock · MIT License · Made with obsession in Pakistan 🇵🇰</div>
+            <div class="footer-status">
+                <span class="dot"></span>
+                <span>All Systems Operational</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        /* ═══════════════════════════════════════════════════════════
+           LOADER
+           ═══════════════════════════════════════════════════════════ */
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('nav').classList.add('ready');
+            }, 1800);
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           LENIS SMOOTH SCROLL
+           ═══════════════════════════════════════════════════════════ */
+        const lenis = new Lenis({
+            duration: 1.4,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            smoothWheel: true,
+        });
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+        lenis.on('scroll', ScrollTrigger.update);
+
+        /* ═══════════════════════════════════════════════════════════
+           ELITE PARTICLE CURSOR SYSTEM (Antigravity-style)
+           ═══════════════════════════════════════════════════════════ */
+        (() => {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            const cursorCore = document.querySelector('.cursor-core');
+            const cursorRing = document.querySelector('.cursor-ring');
+
+            let W = canvas.width = window.innerWidth;
+            let H = canvas.height = window.innerHeight;
+            window.addEventListener('resize', () => {
+                W = canvas.width = window.innerWidth;
+                H = canvas.height = window.innerHeight;
+            });
+
+            // Mouse tracking
+            let mx = W / 2, my = H / 2;
+            let pmx = mx, pmy = my;
+            let vx = 0, vy = 0;
+            let speed = 0;
+            let cx = mx, cy = my;
+            let rx = mx, ry = my;
+
+            // Particle pool
+            const particles = [];
+            const MAX_PARTICLES = 200;
+
+            class Particle {
+                constructor(x, y, vx, vy) {
+                    this.x = x;
+                    this.y = y;
+                    // Inherit some velocity from cursor + add randomness
+                    const angle = Math.random() * Math.PI * 2;
+                    const force = Math.random() * 2 + 0.5;
+                    this.vx = vx * 0.2 + Math.cos(angle) * force;
+                    this.vy = vy * 0.2 + Math.sin(angle) * force;
+                    this.life = 1;
+                    this.decay = 0.015 + Math.random() * 0.02;
+                    this.size = Math.random() * 2.5 + 0.8;
+                    // Color palette: white → blue → purple → pink
+                    const hue = Math.random();
+                    if (hue < 0.5) {
+                        this.color = `255, 255, 255`;
+                    } else if (hue < 0.75) {
+                        this.color = `100, 160, 255`;  // blue
+                    } else if (hue < 0.92) {
+                        this.color = `191, 90, 242`;   // purple
+                    } else {
+                        this.color = `255, 100, 150`;  // pink
+                    }
+                }
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vx *= 0.96;
+                    this.vy *= 0.96;
+                    this.vy -= 0.02; // slight upward float
+                    this.life -= this.decay;
+                    this.size *= 0.985;
+                }
+                draw() {
+                    ctx.beginPath();
+                    ctx.fillStyle = `rgba(${this.color}, ${this.life * 0.85})`;
+                    ctx.arc(this.x, this.y, Math.max(0, this.size), 0, Math.PI * 2);
+                    ctx.fill();
+                    // Glow
+                    ctx.beginPath();
+                    ctx.fillStyle = `rgba(${this.color}, ${this.life * 0.15})`;
+                    ctx.arc(this.x, this.y, Math.max(0, this.size * 2.5), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            window.addEventListener('mousemove', (e) => {
+                pmx = mx; pmy = my;
+                mx = e.clientX;
+                my = e.clientY;
+                vx = mx - pmx;
+                vy = my - pmy;
+                speed = Math.sqrt(vx * vx + vy * vy);
+
+                // Spawn particles based on movement speed
+                const spawnCount = Math.min(Math.floor(speed / 4), 4);
+                for (let i = 0; i < spawnCount; i++) {
+                    if (particles.length < MAX_PARTICLES) {
+                        // Spawn slightly behind cursor with offset
+                        const offsetX = (Math.random() - 0.5) * 8;
+                        const offsetY = (Math.random() - 0.5) * 8;
+                        particles.push(new Particle(mx + offsetX, my + offsetY, vx, vy));
+                    }
+                }
+            });
+
+            // Click burst
+            window.addEventListener('mousedown', () => {
+                cursorCore.classList.add('click');
+                for (let i = 0; i < 30; i++) {
+                    const angle = (i / 30) * Math.PI * 2;
+                    const force = 4 + Math.random() * 3;
+                    const p = new Particle(mx, my, Math.cos(angle) * force * 2, Math.sin(angle) * force * 2);
+                    p.vx = Math.cos(angle) * force;
+                    p.vy = Math.sin(angle) * force;
+                    particles.push(p);
+                }
+            });
+            window.addEventListener('mouseup', () => {
+                cursorCore.classList.remove('click');
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, W, H);
+
+                // Update particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update();
+                    p.draw();
+                    if (p.life <= 0 || p.size <= 0.2) {
+                        particles.splice(i, 1);
+                    }
+                }
+
+                // Update cursor smoothly
+                cx += (mx - cx) * 0.4;
+                cy += (my - cy) * 0.4;
+                rx += (mx - rx) * 0.18;
+                ry += (my - ry) * 0.18;
+                cursorCore.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+                cursorRing.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            // Hover detection
+            document.querySelectorAll('a, button, .bento-card, .device-stage, input, .install-tab').forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    cursorCore.classList.add('expand');
+                    cursorRing.classList.add('expand');
+                });
+                el.addEventListener('mouseleave', () => {
+                    cursorCore.classList.remove('expand');
+                    cursorRing.classList.remove('expand');
+                });
+            });
+        })();
+
+        /* ═══════════════════════════════════════════════════════════
+           THEME TOGGLE
+           ═══════════════════════════════════════════════════════════ */
+        function toggleTheme() {
+            const root = document.documentElement;
+            const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            root.dataset.theme = next;
+            localStorage.setItem('theme', next);
+            updateThemeIcon();
+        }
+        function updateThemeIcon() {
+            const icon = document.getElementById('theme-icon');
+            const isDark = document.documentElement.dataset.theme === 'dark';
+            if (isDark) {
+                icon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/>';
+            } else {
+                icon.innerHTML = '<circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+            }
+        }
+        (() => {
+            const saved = localStorage.getItem('theme');
+            if (saved) document.documentElement.dataset.theme = saved;
+            updateThemeIcon();
+        })();
+
+        /* ═══════════════════════════════════════════════════════════
+           INSTALL TABS
+           ═══════════════════════════════════════════════════════════ */
+        function showInstall(type, btnEl) {
+            document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+            btnEl.classList.add('active');
+            document.getElementById('install-' + type).classList.add('active');
+        }
+        function copyCode(id, btnEl) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const original = btnEl.innerHTML;
+                btnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied';
+                btnEl.style.background = 'var(--green)';
+                btnEl.style.color = 'white';
+                btnEl.style.borderColor = 'var(--green)';
+                setTimeout(() => {
+                    btnEl.innerHTML = original;
+                    btnEl.style.background = '';
+                    btnEl.style.color = '';
+                    btnEl.style.borderColor = '';
+                }, 2000);
+            });
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           HERO TEXT ANIMATION
+           ═══════════════════════════════════════════════════════════ */
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                gsap.to('.hero h1 .word', {
+                    opacity: 1, y: 0, duration: 1.3, stagger: 0.12, ease: 'expo.out',
+                });
+                gsap.to('#hero-badge', { opacity: 1, y: 0, duration: 0.9, delay: 0.4, ease: 'expo.out' });
+                gsap.to('#hero-sub', { opacity: 1, y: 0, duration: 0.9, delay: 0.7, ease: 'expo.out' });
+                gsap.to('#hero-actions', { opacity: 1, y: 0, duration: 0.9, delay: 0.9, ease: 'expo.out' });
+                gsap.to('#hero-trust', { opacity: 1, y: 0, duration: 0.9, delay: 1.1, ease: 'expo.out' });
+                gsap.to('#scroll-hint', { opacity: 1, duration: 1, delay: 1.4 });
+            }, 1900);
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           SCROLL REVEALS
+           ═══════════════════════════════════════════════════════════ */
+        gsap.utils.toArray('.section-header, .bento-card, .showcase-text, .device-stage, .install-tabs, .install-panel, .cta-mega, .stat').forEach((el) => {
+            gsap.fromTo(el,
+                { opacity: 0, y: 50 },
+                {
+                    opacity: 1, y: 0, duration: 1, ease: 'expo.out',
+                    scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none none' }
+                }
+            );
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           COUNTERS
+           ═══════════════════════════════════════════════════════════ */
+        gsap.utils.toArray('.stat-num').forEach(el => {
+            const target = parseInt(el.dataset.count);
+            const unitEl = el.querySelector('.unit');
+            const unit = unitEl ? unitEl.outerHTML : '';
+            ScrollTrigger.create({
+                trigger: el,
+                start: 'top 85%',
+                once: true,
+                onEnter: () => {
+                    gsap.fromTo({ val: 0 },
+                        { val: 0 },
+                        {
+                            val: target,
+                            duration: 2.2,
+                            ease: 'expo.out',
+                            onUpdate: function () {
+                                el.innerHTML = Math.floor(this.targets()[0].val) + unit;
+                            }
+                        }
+                    );
+                }
+            });
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           BENTO CARD MOUSE TRACKING
+           ═══════════════════════════════════════════════════════════ */
+        document.querySelectorAll('.bento-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                card.style.setProperty('--mx', x + '%');
+                card.style.setProperty('--my', y + '%');
+            });
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           THREE.JS HERO SCENE
+           ═══════════════════════════════════════════════════════════ */
+        (() => {
+            const canvas = document.getElementById('three-canvas');
+            if (!canvas || !window.THREE) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60,
+                window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Particle constellation
+            const particleCount = 2500;
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                const r = 8 + Math.random() * 14;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = r * Math.cos(phi);
+
+                const t = Math.random();
+                if (t < 0.6) {
+                    colors[i * 3] = 0.1 + t * 0.4;
+                    colors[i * 3 + 1] = 0.5 + t * 0.3;
+                    colors[i * 3 + 2] = 1.0;
+                } else if (t < 0.9) {
+                    colors[i * 3] = 0.75;
+                    colors[i * 3 + 1] = 0.35;
+                    colors[i * 3 + 2] = 0.95;
+                } else {
+                    colors[i * 3] = 1.0;
+                    colors[i * 3 + 1] = 0.4;
+                    colors[i * 3 + 2] = 0.6;
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const mat = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+            });
+
+            const particles = new THREE.Points(geo, mat);
+            scene.add(particles);
+
+            // Central wireframe spheres
+            const sphereGeo = new THREE.IcosahedronGeometry(2, 1);
+            const sphereMat = new THREE.MeshBasicMaterial({
+                color: 0x0a84ff, wireframe: true, transparent: true, opacity: 0.4,
+            });
+            const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+            scene.add(sphere);
+
+            const sphereGeo2 = new THREE.IcosahedronGeometry(3.5, 1);
+            const sphereMat2 = new THREE.MeshBasicMaterial({
+                color: 0xbf5af2, wireframe: true, transparent: true, opacity: 0.15,
+            });
+            const sphere2 = new THREE.Mesh(sphereGeo2, sphereMat2);
+            scene.add(sphere2);
+
+            camera.position.z = 15;
+
+            let mouseX = 0, mouseY = 0;
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+                mouseY = -(e.clientY / window.innerHeight - 0.5) * 2;
+            });
+
+            let scrollY = 0;
+            window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = Date.now() * 0.0005;
+                particles.rotation.y = t * 0.5;
+                particles.rotation.x = t * 0.2;
+                sphere.rotation.x = t * 0.8;
+                sphere.rotation.y = t * 0.6;
+                sphere2.rotation.x = -t * 0.4;
+                sphere2.rotation.y = -t * 0.5;
+                camera.position.x += (mouseX * 2 - camera.position.x) * 0.03;
+                camera.position.y += (mouseY * 2 - camera.position.y) * 0.03;
+                camera.position.z = 15 + scrollY * 0.01;
+                camera.lookAt(0, 0, 0);
+                renderer.render(scene, camera);
+            }
+            animate();
+        })();
+
+        /* ═══════════════════════════════════════════════════════════
+           LIVE UI DEMO
+           ═══════════════════════════════════════════════════════════ */
+        (() => {
+            const arcsContainer = document.getElementById('ui-arcs');
+            if (!arcsContainer) return;
+            const N = 16;
+            const segments = [];
+            for (let i = 0; i < N; i++) {
+                const seg = document.createElement('div');
+                seg.className = 'ui-arc-segment';
+                const angle = (i / N) * 360 - 90;
+                seg.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-100px)`;
+                arcsContainer.appendChild(seg);
+                segments.push(seg);
+            }
+
+            const status = document.getElementById('ui-status');
+            const substatus = document.getElementById('ui-substatus');
+            const counter = document.getElementById('ui-counter');
+
+            function cycle() {
+                segments.forEach(s => s.classList.remove('active'));
+                status.textContent = 'Face ID';
+                status.style.color = 'white';
+                substatus.textContent = 'Position your face';
+                counter.textContent = '0 of 16';
+
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i < N) {
+                        segments[i].classList.add('active');
+                        i++;
+                        if (i < N) {
+                            status.textContent = 'Scanning…';
+                            substatus.textContent = 'Hold still';
+                        } else {
+                            status.textContent = 'Face ID Set';
+                            status.style.color = '#30d158';
+                            substatus.textContent = 'Welcome back';
+                        }
+                        counter.textContent = `${i} of 16`;
+                    } else {
+                        clearInterval(interval);
+                        setTimeout(cycle, 2000);
+                    }
+                }, 250);
+            }
+            cycle();
+        })();
+
+        /* ═══════════════════════════════════════════════════════════
+           3D DEVICE TILT
+           ═══════════════════════════════════════════════════════════ */
+        document.querySelectorAll('.device-stage').forEach(stage => {
+            const device = stage.querySelector('.device');
+            stage.addEventListener('mousemove', (e) => {
+                const rect = stage.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width;
+                const y = (e.clientY - rect.top) / rect.height;
+                const rotX = (y - 0.5) * -18;
+                const rotY = (x - 0.5) * 18;
+                device.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+            });
+            stage.addEventListener('mouseleave', () => { device.style.transform = ''; });
+        });
+
+        /* ═══════════════════════════════════════════════════════════
+           SMOOTH NAV
+           ═══════════════════════════════════════════════════════════ */
+        document.querySelectorAll('a[href^="#"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (href === '#' || href.length < 2) return;
+                const target = document.querySelector(href);
+                if (target) {
+                    e.preventDefault();
+                    lenis.scrollTo(target);
+                }
+            });
+        });
+
+        console.log('%cNovaUnlock — Atelier Edition L99', 'font: 700 24px Space Grotesk; color: #0a84ff; padding: 8px 16px; background: #000; border-radius: 8px;');
+        console.log('%cBuilt with obsession.', 'color: #bf5af2; font: 14px monospace;');
+    </script>
+
+</body>
+
+</html>

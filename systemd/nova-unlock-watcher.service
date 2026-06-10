@@ -1,24 +1,17 @@
 [Unit]
-Description=NovaUnlock Face Unlock Watcher
-After=default.target graphical-session.target
+Description=NovaUnlock Face Presence Guard v5.2
+After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
 Type=simple
-Environment=PYTHONUNBUFFERED=1
-ExecStartPre=/bin/sleep 3
-ExecStart=/bin/bash -lc '\
-  export DISPLAY="${DISPLAY:-:1}"; \
-  export XAUTHORITY="${XAUTHORITY:-/run/user/$(id -u)/gdm/Xauthority}"; \
-  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"; \
-  export QT_QPA_PLATFORM=xcb; \
-  unset WAYLAND_DISPLAY; \
-  exec /home/%u/NovaUnlock/.venv/bin/python3 \
-       /home/%u/NovaUnlock/scripts/face_unlock_daemon.pyc'
-Restart=always
-RestartSec=3
-StandardOutput=journal
-StandardError=journal
+ExecStart=/bin/bash -c 'source %h/Desktop/NovaUnlock/.venv/bin/activate && python3 %h/Desktop/NovaUnlock/scripts/face_unlock_daemon.py --guard'
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:%h/Desktop/NovaUnlock/logs/guard.log
+StandardError=append:%h/Desktop/NovaUnlock/logs/guard.log
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

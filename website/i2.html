@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaUnlock — Face ID for Linux</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.0.42/dist/lenis.min.js"></script>
+    <style>
+        /* ───── Tokens ───── */
+        :root {
+            --bg: #09090b;
+            --surface: #111113;
+            --surface2: #1a1a1e;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-h: rgba(255, 255, 255, 0.12);
+            --text: #fafafa;
+            --text2: #a1a1aa;
+            --text3: #52525b;
+            --blue: #3b82f6;
+            --green: #22c55e;
+            --r: 12px;
+            --r-full: 999px;
+        }
+
+        /* ───── Reset ───── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html {
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            line-height: 1.6
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit
+        }
+
+        img {
+            display: block;
+            max-width: 100%
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer
+        }
+
+        ::selection {
+            background: var(--blue);
+            color: #fff
+        }
+
+        /* ───── Cursor ───── */
+        .cur {
+            position: fixed;
+            width: 28px;
+            height: 28px;
+            border: 1.5px solid rgba(255, 255, 255, .2);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: width .3s cubic-bezier(.25, .8, .25, 1), height .3s cubic-bezier(.25, .8, .25, 1), border-color .3s, background .2s;
+            will-change: transform
+        }
+
+        .cur.h {
+            width: 52px;
+            height: 52px;
+            border-color: rgba(59, 130, 246, .5);
+            background: rgba(59, 130, 246, .06)
+        }
+
+        @media(hover:none) {
+            .cur {
+                display: none
+            }
+
+            body {
+                cursor: auto
+            }
+        }
+
+        /* ───── Nav ───── */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 0 48px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(9, 9, 11, .75);
+            backdrop-filter: blur(20px) saturate(1.8);
+            -webkit-backdrop-filter: blur(20px) saturate(1.8);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .nav-l {
+            display: flex;
+            align-items: center;
+            gap: 40px
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: -.02em
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--blue);
+            display: grid;
+            place-items: center
+        }
+
+        .logo-icon svg {
+            width: 16px;
+            height: 16px;
+            fill: #fff
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px
+        }
+
+        .nav-links a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text2);
+            padding: 8px 14px;
+            border-radius: var(--r-full);
+            transition: color .2s, background .15s
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, .04)
+        }
+
+        .nav-r {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .btn-sm {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: var(--r-full);
+            font-size: 13.5px;
+            font-weight: 600;
+            border: none;
+            transition: all .2s
+        }
+
+        .btn-sm.ghost {
+            background: transparent;
+            color: var(--text2);
+            border: 1px solid var(--border-h)
+        }
+
+        .btn-sm.ghost:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, .2);
+            background: rgba(255, 255, 255, .03)
+        }
+
+        .btn-sm.primary {
+            background: var(--text);
+            color: var(--bg)
+        }
+
+        .btn-sm.primary:hover {
+            opacity: .9;
+            transform: translateY(-1px)
+        }
+
+        .btn-sm svg {
+            width: 14px;
+            height: 14px
+        }
+
+        /* ───── Hero ───── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 32px 80px;
+            position: relative;
+            text-align: center
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(59, 130, 246, .07), transparent 65%);
+            pointer-events: none
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 5px 5px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border-h);
+            border-radius: var(--r-full);
+            font-size: 13px;
+            color: var(--text2);
+            margin-bottom: 32px;
+            font-weight: 500
+        }
+
+        .hero-pill-badge {
+            background: var(--blue);
+            color: #fff;
+            padding: 3px 9px;
+            border-radius: var(--r-full);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .02em
+        }
+
+        .hero-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .3
+            }
+        }
+
+        .hero h1 {
+            font-size: clamp(48px, 8vw, 88px);
+            font-weight: 700;
+            letter-spacing: -.045em;
+            line-height: .95;
+            margin-bottom: 24px;
+            max-width: 800px
+        }
+
+        .hero h1 .accent {
+            background: linear-gradient(135deg, var(--blue), #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text
+        }
+
+        .hero-sub {
+            font-size: clamp(16px, 1.5vw, 19px);
+            color: var(--text2);
+            max-width: 520px;
+            margin: 0 auto 36px;
+            line-height: 1.55;
+            font-weight: 400
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 48px
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            border-radius: var(--r-full);
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            transition: all .2s
+        }
+
+        .btn-p {
+            background: var(--text);
+            color: var(--bg);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 12px 40px rgba(0, 0, 0, .4)
+        }
+
+        .btn-p:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 20px 50px rgba(0, 0, 0, .5)
+        }
+
+        .btn-s {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border-h)
+        }
+
+        .btn-s:hover {
+            border-color: rgba(255, 255, 255, .2);
+            transform: translateY(-2px)
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px
+        }
+
+        /* ───── Device Mockup ───── */
+        .device-wrap {
+            position: relative;
+            margin: 0 auto;
+            max-width: 360px;
+            perspective: 1200px
+        }
+
+        .device-frame {
+            background: #0c0c0e;
+            border-radius: 40px;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 60px 120px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .04);
+            transition: transform .4s cubic-bezier(.25, .8, .25, 1)
+        }
+
+        .device-screen {
+            background: #000;
+            border-radius: 32px;
+            overflow: hidden;
+            aspect-ratio: 9/16;
+            position: relative
+        }
+
+        .face-ui {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 56px 20px 32px;
+            background: radial-gradient(ellipse at 50% 20%, #0a0e1a, #000 80%)
+        }
+
+        .face-ui-notch {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 26px;
+            background: #0c0c0e;
+            border-radius: 20px
+        }
+
+        .face-ring-wrap {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            margin: 28px 0 32px
+        }
+
+        .face-ring-arcs {
+            position: absolute;
+            inset: 0
+        }
+
+        .arc {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 12px;
+            background: rgba(255, 255, 255, .15);
+            border-radius: 3px;
+            transform-origin: center 90px;
+            transition: background .25s, box-shadow .25s
+        }
+
+        .arc.on {
+            background: var(--green);
+            box-shadow: 0 0 10px rgba(34, 197, 94, .7)
+        }
+
+        .face-inner {
+            position: absolute;
+            inset: 16px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #2a2d38, #111318);
+            overflow: hidden;
+            display: grid;
+            place-items: center
+        }
+
+        .face-inner svg {
+            width: 52%;
+            height: 52%;
+            stroke: #fff;
+            stroke-width: 4;
+            stroke-linecap: round;
+            fill: none;
+            opacity: .9
+        }
+
+        .face-label {
+            font-size: 17px;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: -.01em;
+            transition: color .3s
+        }
+
+        .face-sublabel {
+            font-size: 12px;
+            color: rgba(255, 255, 255, .45);
+            margin-top: 4px
+        }
+
+        .face-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: rgba(255, 255, 255, .3);
+            margin-top: 14px;
+            letter-spacing: .05em
+        }
+
+        /* ───── Trust Strip ───── */
+        .trust {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            padding: 48px 32px;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .trust-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text3);
+            font-weight: 500
+        }
+
+        .trust-item svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--green);
+            fill: none;
+            stroke-width: 2.5
+        }
+
+        /* ───── Section ───── */
+        .sec {
+            padding: 120px 32px;
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        .sec-head {
+            max-width: 640px;
+            margin-bottom: 64px
+        }
+
+        .sec-tag {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--blue);
+            margin-bottom: 16px;
+            letter-spacing: .04em
+        }
+
+        .sec-title {
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 700;
+            letter-spacing: -.035em;
+            line-height: 1.05;
+            margin-bottom: 16px
+        }
+
+        .sec-lead {
+            font-size: 17px;
+            color: var(--text2);
+            line-height: 1.55
+        }
+
+        /* ───── Showcase Row ───── */
+        .showcase-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+            margin-bottom: 120px
+        }
+
+        .showcase-row.reverse {
+            direction: rtl
+        }
+
+        .showcase-row.reverse>* {
+            direction: ltr
+        }
+
+        .sc-text h3 {
+            font-size: clamp(28px, 3.5vw, 40px);
+            font-weight: 700;
+            letter-spacing: -.03em;
+            line-height: 1.1;
+            margin-bottom: 18px
+        }
+
+        .sc-text p {
+            font-size: 16px;
+            color: var(--text2);
+            line-height: 1.6;
+            margin-bottom: 14px
+        }
+
+        .sc-checks {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 24px
+        }
+
+        .sc-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text2)
+        }
+
+        .sc-check-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, .12);
+            border: 1px solid rgba(34, 197, 94, .25);
+            display: grid;
+            place-items: center;
+            flex-shrink: 0
+        }
+
+        .sc-check-icon svg {
+            width: 10px;
+            height: 10px;
+            stroke: var(--green);
+            fill: none;
+            stroke-width: 3
+        }
+
+        .sc-img {
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            position: relative;
+            background: var(--surface)
+        }
+
+        .sc-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block
+        }
+
+        .sc-img::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 50%, rgba(9, 9, 11, .6));
+            pointer-events: none
+        }
+
+        /* ───── Feature Grid ───── */
+        .feat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 64px
+        }
+
+        .feat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            transition: transform .3s cubic-bezier(.25, .8, .25, 1), border-color .3s, box-shadow .3s;
+            position: relative;
+            overflow: hidden
+        }
+
+        .feat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-h);
+            box-shadow: 0 24px 48px rgba(0, 0, 0, .3)
+        }
+
+        .feat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(59, 130, 246, .08);
+            border: 1px solid rgba(59, 130, 246, .15);
+            display: grid;
+            place-items: center;
+            margin-bottom: 20px
+        }
+
+        .feat-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--blue);
+            fill: none;
+            stroke-width: 2
+        }
+
+        .feat-card h3 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -.01em;
+            margin-bottom: 8px
+        }
+
+        .feat-card p {
+            font-size: 14px;
+            color: var(--text2);
+            line-height: 1.5
+        }
+
+        /* ───── Stats ───── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 64px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            margin: 0 0 80px
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 24px 16px
+        }
+
+        .stat-val {
+            font-size: clamp(40px, 5vw, 56px);
+            font-weight: 700;
+            letter-spacing: -.04em;
+            line-height: 1;
+            margin-bottom: 8px
+        }
+
+        .stat-val .unit {
+            font-size: .45em;
+            color: var(--text3);
+            font-weight: 500;
+            vertical-align: super;
+            margin-left: 2px
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text3);
+            font-weight: 500;
+            letter-spacing: .04em;
+            text-transform: uppercase
+        }
+
+        /* ───── Install ───── */
+        .install-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 4px;
+            border-radius: var(--r);
+            width: fit-content;
+            margin-bottom: 24px
+        }
+
+        .install-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text3);
+            font-size: 13.5px;
+            font-weight: 600;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: all .2s
+        }
+
+        .install-tab svg {
+            width: 13px;
+            height: 13px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2
+        }
+
+        .install-tab:hover {
+            color: var(--text2)
+        }
+
+        .install-tab.active {
+            background: var(--blue);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, .3)
+        }
+
+        .install-panel {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden
+        }
+
+        .install-panel.active {
+            display: block
+        }
+
+        .install-panel-head {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .install-panel-head h4 {
+            font-size: 15px;
+            font-weight: 600
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border-h);
+            color: var(--text2);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all .2s
+        }
+
+        .copy-btn svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2
+        }
+
+        .copy-btn:hover {
+            background: var(--blue);
+            color: #fff;
+            border-color: var(--blue)
+        }
+
+        .code-block {
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.85;
+            color: var(--text2);
+            overflow-x: auto
+        }
+
+        .code-block .cm {
+            color: var(--text3)
+        }
+
+        .code-block .kw {
+            color: #60a5fa
+        }
+
+        .code-block .str {
+            color: var(--green)
+        }
+
+        /* ───── CTA ───── */
+        .cta {
+            text-align: center;
+            padding: 100px 32px;
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            margin: 80px auto;
+            max-width: 960px;
+            overflow: hidden
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(59, 130, 246, .08), transparent 65%);
+            pointer-events: none
+        }
+
+        .cta h3 {
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 700;
+            letter-spacing: -.035em;
+            line-height: 1.05;
+            margin-bottom: 14px;
+            position: relative
+        }
+
+        .cta p {
+            color: var(--text2);
+            font-size: 16px;
+            margin-bottom: 40px;
+            position: relative
+        }
+
+        .btn-big {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 40px;
+            background: var(--text);
+            color: var(--bg);
+            border-radius: var(--r-full);
+            font-size: 16px;
+            font-weight: 700;
+            border: none;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+            transition: all .25s;
+            position: relative
+        }
+
+        .btn-big:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, .45)
+        }
+
+        .btn-big svg {
+            width: 18px;
+            height: 18px
+        }
+
+        /* ───── Footer ───── */
+        footer {
+            padding: 72px 48px 36px;
+            border-top: 1px solid var(--border);
+            margin-top: 80px
+        }
+
+        .footer-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px
+        }
+
+        .footer-brand p {
+            color: var(--text3);
+            font-size: 14px;
+            line-height: 1.55;
+            max-width: 300px;
+            margin-top: 12px
+        }
+
+        .footer-col h5 {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 16px
+        }
+
+        .footer-col a {
+            display: block;
+            font-size: 14px;
+            color: var(--text2);
+            padding: 5px 0;
+            transition: color .2s
+        }
+
+        .footer-col a:hover {
+            color: var(--text)
+        }
+
+        .footer-bottom {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text3);
+            font-size: 12.5px;
+            flex-wrap: wrap;
+            gap: 12px
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px
+        }
+
+        .footer-status .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite
+        }
+
+        /* ───── Reveal ───── */
+        .rv {
+            opacity: 0;
+            transform: translateY(32px)
+        }
+
+        /* ───── Responsive ───── */
+        @media(max-width:1024px) {
+            .feat-grid {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr)
+            }
+
+            .showcase-row {
+                grid-template-columns: 1fr;
+                gap: 48px
+            }
+
+            .showcase-row.reverse {
+                direction: ltr
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+
+        @media(max-width:768px) {
+            .nav {
+                padding: 0 20px;
+                height: 56px
+            }
+
+            .nav-links {
+                display: none
+            }
+
+            .sec {
+                padding: 80px 20px
+            }
+
+            .feat-grid {
+                grid-template-columns: 1fr
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center
+            }
+
+            .hero {
+                padding: 100px 20px 60px
+            }
+
+            .hero-actions {
+                flex-direction: column;
+                width: 100%;
+                max-width: 280px
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+                justify-content: center
+            }
+
+            .trust {
+                gap: 20px
+            }
+
+            .cta {
+                margin: 60px 20px;
+                padding: 72px 24px
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Cursor -->
+    <div class="cur" id="cur"></div>
+
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav-l">
+            <a href="#" class="logo">
+                <div class="logo-icon"><svg viewBox="0 0 24 24">
+                        <path d="M12 2L4 6v6c0 5 4 9 8 10 4-1 8-5 8-10V6l-8-4z" />
+                    </svg></div>
+                NovaUnlock
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#install">Install</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock" target="_blank">GitHub</a>
+            </div>
+        </div>
+        <div class="nav-r">
+            <a href="https://github.com/hananqaisar-commits/NovaUnlock" target="_blank" class="btn-sm ghost">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z" />
+                </svg>
+                Star
+            </a>
+            <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases/latest" class="btn-sm primary">Get
+                NovaUnlock</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-pill rv">
+            <span class="hero-pill-badge">NEW</span>
+            v4.7 released
+            <span class="dot"></span>
+        </div>
+        <h1 class="rv">Unlock Linux<br><span class="accent">with your face.</span></h1>
+        <p class="hero-sub rv">Face ID for Linux desktops. 200ms unlock, 100% on-device processing, zero telemetry. Open
+            source and free forever.</p>
+        <div class="hero-actions rv">
+            <a href="#install" class="btn btn-p">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download for Linux
+            </a>
+            <a href="https://github.com/hananqaisar-commits/NovaUnlock" target="_blank" class="btn btn-s">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z" />
+                </svg>
+                View Source
+            </a>
+        </div>
+
+        <!-- Device Mockup -->
+        <div class="device-wrap rv" id="device">
+            <div class="device-frame">
+                <div class="device-screen">
+                    <div class="face-ui">
+                        <div class="face-ui-notch"></div>
+                        <div class="face-ring-wrap">
+                            <div class="face-ring-arcs" id="arcs"></div>
+                            <div class="face-inner">
+                                <svg viewBox="0 0 100 100">
+                                    <line x1="34" y1="38" x2="34" y2="48" />
+                                    <line x1="66" y1="38" x2="66" y2="48" />
+                                    <path d="M 38 66 Q 50 74 62 66" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="face-label" id="faceLabel">Face ID</div>
+                        <div class="face-sublabel" id="faceSub">Position your face in the frame</div>
+                        <div class="face-counter" id="faceCount">0 / 16</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Strip -->
+    <div class="trust">
+        <div class="trust-item"><svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>200ms unlock</div>
+        <div class="trust-item"><svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>100% on-device</div>
+        <div class="trust-item"><svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>MIT Licensed</div>
+        <div class="trust-item"><svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>Zero telemetry</div>
+        <div class="trust-item"><svg viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>8 MB install</div>
+    </div>
+
+    <!-- Showcase 1 -->
+    <section class="sec">
+        <div class="showcase-row">
+            <div class="sc-text rv">
+                <h3>Faster than typing<br>your password.</h3>
+                <p>NovaUnlock authenticates you in under 200 milliseconds — faster than a blink. The moment your face
+                    appears on camera, you're in. No delay, no friction.</p>
+                <p>Built on optimized face detection models that run directly on your CPU. No GPU required.</p>
+                <div class="sc-checks">
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>200ms face recognition
+                    </div>
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>Works in low light
+                    </div>
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>Multiple user profiles
+                    </div>
+                </div>
+            </div>
+            <div class="sc-img rv">
+                <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80"
+                    alt="Cybersecurity visualization" loading="lazy">
+            </div>
+        </div>
+
+        <div class="showcase-row reverse">
+            <div class="sc-text rv">
+                <h3>Your face data never<br>leaves your machine.</h3>
+                <p>All biometric data is processed and stored locally on your device. No cloud uploads, no external
+                    servers, no analytics. Your privacy isn't a feature — it's the architecture.</p>
+                <p>Encrypted with 256-bit AES. Even if someone copies the data, it's useless without your hardware.</p>
+                <div class="sc-checks">
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>100% local processing
+                    </div>
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>AES-256 encryption
+                    </div>
+                    <div class="sc-check">
+                        <div class="sc-check-icon"><svg viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></div>No network required
+                    </div>
+                </div>
+            </div>
+            <div class="sc-img rv">
+                <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80"
+                    alt="Secure data center" loading="lazy">
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="sec">
+        <div class="stats">
+            <div class="stat-item rv">
+                <div class="stat-val" data-val="200">0<span class="unit">ms</span></div>
+                <div class="stat-label">Unlock Speed</div>
+            </div>
+            <div class="stat-item rv">
+                <div class="stat-val" data-val="100">0<span class="unit">%</span></div>
+                <div class="stat-label">Local Processing</div>
+            </div>
+            <div class="stat-item rv">
+                <div class="stat-val" data-val="15">0<span class="unit">+</span></div>
+                <div class="stat-label">Distros Tested</div>
+            </div>
+            <div class="stat-item rv">
+                <div class="stat-val" data-val="60">0<span class="unit">fps</span></div>
+                <div class="stat-label">Smooth UI</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="sec" id="features">
+        <div class="sec-head rv">
+            <div class="sec-tag">Features</div>
+            <h2 class="sec-title">Built with intention.<br>Not with shortcuts.</h2>
+            <p class="sec-lead">Every component of NovaUnlock is hand-tested, hand-tuned, and built to last across every
+                major Linux desktop environment.</p>
+        </div>
+
+        <div class="feat-grid">
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg></div>
+                <h3>Lightning Fast</h3>
+                <p>200ms face recognition. Optimized inference engine that runs on any CPU without GPU dependency.</p>
+            </div>
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg></div>
+                <h3>Privacy First</h3>
+                <p>Zero telemetry. Zero cloud. Your biometric data is encrypted and stored only on your hardware.</p>
+            </div>
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg></div>
+                <h3>All Desktops</h3>
+                <p>GNOME, KDE, XFCE, Cinnamon, MATE. LightDM, GDM, SDDM. Tested and working.</p>
+            </div>
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg></div>
+                <h3>Open Source</h3>
+                <p>MIT licensed. Audit every line. Contribute freely. Trust through transparency.</p>
+            </div>
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <path
+                            d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg></div>
+                <h3>60 Second Setup</h3>
+                <p>Download, install, enroll. Three steps. One minute. No configuration files to edit.</p>
+            </div>
+            <div class="feat-card rv">
+                <div class="feat-icon"><svg viewBox="0 0 24 24">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg></div>
+                <h3>Reliable</h3>
+                <p>Tested across 15+ distributions and 6 desktop environments. It just works.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install -->
+    <section class="sec" id="install">
+        <div class="sec-head rv">
+            <div class="sec-tag">Install</div>
+            <h2 class="sec-title">Get started in seconds.</h2>
+            <p class="sec-lead">Three methods. Same result. Pick what fits your workflow.</p>
+        </div>
+
+        <div class="install-tabs rv">
+            <button class="install-tab active" onclick="showTab('wget',this)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                wget
+            </button>
+            <button class="install-tab" onclick="showTab('curl',this)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                curl
+            </button>
+            <button class="install-tab" onclick="showTab('git',this)">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v7" />
+                    <path d="M5 12h7" />
+                </svg>
+                git clone
+            </button>
+        </div>
+
+        <div class="install-panel active rv" id="tab-wget">
+            <div class="install-panel-head">
+                <h4>Quick install with wget</h4>
+                <button class="copy-btn" onclick="copyCode('code-wget',this)"><svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>Copy</button>
+            </div>
+            <pre class="code-block" id="code-wget"><span class="cm"># Download the installer</span>
+<span class="kw">wget</span> https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6
+
+<span class="cm"># Make executable and run</span>
+<span class="kw">chmod</span> +x nova_unlock_installer_v4.6
+<span class="kw">sudo</span> ./nova_unlock_installer_v4.6</pre>
+        </div>
+
+        <div class="install-panel" id="tab-curl">
+            <div class="install-panel-head">
+                <h4>One-line install with curl</h4>
+                <button class="copy-btn" onclick="copyCode('code-curl',this)"><svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>Copy</button>
+            </div>
+            <pre class="code-block" id="code-curl"><span class="cm"># Download with curl</span>
+<span class="kw">curl</span> -L -o nova_installer \
+  https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6
+
+<span class="cm"># Install</span>
+<span class="kw">chmod</span> +x nova_installer && <span class="kw">sudo</span> ./nova_installer</pre>
+        </div>
+
+        <div class="install-panel" id="tab-git">
+            <div class="install-panel-head">
+                <h4>Clone from GitHub</h4>
+                <button class="copy-btn" onclick="copyCode('code-git',this)"><svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>Copy</button>
+            </div>
+            <pre class="code-block" id="code-git"><span class="cm"># Clone the repository</span>
+<span class="kw">git</span> clone https://github.com/hananqaisar-commits/NovaUnlock.git
+<span class="kw">cd</span> NovaUnlock
+
+<span class="cm"># Run the installer</span>
+<span class="kw">sudo</span> ./releases/nova_unlock_installer_v4.6</pre>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta rv">
+            <h3>Ready to ditch<br>your password?</h3>
+            <p>Free. Open source. 8MB. Installs in 60 seconds.</p>
+            <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer_v4.6"
+                class="btn-big">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download NovaUnlock
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div class="logo">
+                    <div class="logo-icon"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L4 6v6c0 5 4 9 8 10 4-1 8-5 8-10V6l-8-4z" fill="white" />
+                        </svg></div>
+                    NovaUnlock
+                </div>
+                <p>Face ID for Linux. Hand-crafted and open source. Built by Hanan Qaisar.</p>
+            </div>
+            <div class="footer-col">
+                <h5>Product</h5>
+                <a href="#features">Features</a>
+                <a href="#install">Install</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/releases">Releases</a>
+            </div>
+            <div class="footer-col">
+                <h5>Resources</h5>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/issues">Issues</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/discussions">Discussions</a>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock/wiki">Docs</a>
+            </div>
+            <div class="footer-col">
+                <h5>Connect</h5>
+                <a href="https://github.com/hananqaisar-commits/NovaUnlock">GitHub</a>
+                <a href="https://github.com/hananqaisar-commits">@hananqaisar-commits</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2026 NovaUnlock · MIT License</span>
+            <div class="footer-status"><span class="dot"></span>All systems operational</div>
+        </div>
+    </footer>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        /* ───── Lenis ───── */
+        const lenis = new Lenis({ duration: 1.2, easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smoothWheel: true });
+        (function raf(t) { lenis.raf(t); requestAnimationFrame(raf) })(0);
+        lenis.on('scroll', ScrollTrigger.update);
+
+        /* ───── Cursor ───── */
+        ; (function () {
+            const c = document.getElementById('cur');
+            if (!c || matchMedia('(hover:none)').matches) return;
+            let mx = 0, my = 0, cx = 0, cy = 0;
+            document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+            (function loop() {
+                cx += (mx - cx) * 0.18;
+                cy += (my - cy) * 0.18;
+                c.style.left = cx + 'px';
+                c.style.top = cy + 'px';
+                requestAnimationFrame(loop);
+            })();
+            document.querySelectorAll('a,button,.feat-card,.device-frame').forEach(el => {
+                el.addEventListener('mouseenter', () => c.classList.add('h'));
+                el.addEventListener('mouseleave', () => c.classList.remove('h'));
+            });
+        })();
+
+        /* ───── Reveals ───── */
+        gsap.utils.toArray('.rv').forEach(el => {
+            gsap.to(el, {
+                opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+                scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+            });
+        });
+
+        /* ───── Counters ───── */
+        gsap.utils.toArray('.stat-val').forEach(el => {
+            const target = +el.dataset.val;
+            const unit = el.querySelector('.unit');
+            const unitHTML = unit ? unit.outerHTML : '';
+            ScrollTrigger.create({
+                trigger: el, start: 'top 85%', once: true,
+                onEnter: () => {
+                    gsap.to({ v: 0 }, {
+                        v: target, duration: 1.8, ease: 'power2.out',
+                        onUpdate() { el.innerHTML = Math.floor(this.targets()[0].v) + unitHTML; }
+                    });
+                }
+            });
+        });
+
+        /* ───── Device tilt ───── */
+        ; (function () {
+            const wrap = document.getElementById('device');
+            const frame = wrap?.querySelector('.device-frame');
+            if (!wrap || !frame) return;
+            wrap.addEventListener('mousemove', e => {
+                const r = wrap.getBoundingClientRect();
+                const x = (e.clientX - r.left) / r.width - 0.5;
+                const y = (e.clientY - r.top) / r.height - 0.5;
+                frame.style.transform = `rotateY(${x * 14}deg) rotateX(${y * -14}deg)`;
+            });
+            wrap.addEventListener('mouseleave', () => { frame.style.transform = ''; });
+        })();
+
+        /* ───── Face scan demo ───── */
+        ; (function () {
+            const container = document.getElementById('arcs');
+            if (!container) return;
+            const N = 16, segs = [];
+            for (let i = 0; i < N; i++) {
+                const d = document.createElement('div');
+                d.className = 'arc';
+                d.style.transform = `translate(-50%,-50%) rotate(${(i / N) * 360 - 90}deg) translateY(-90px)`;
+                container.appendChild(d);
+                segs.push(d);
+            }
+            const label = document.getElementById('faceLabel');
+            const sub = document.getElementById('faceSub');
+            const count = document.getElementById('faceCount');
+            function cycle() {
+                segs.forEach(s => s.classList.remove('on'));
+                label.textContent = 'Face ID';
+                label.style.color = '#fff';
+                sub.textContent = 'Position your face in the frame';
+                count.textContent = '0 / 16';
+                let i = 0;
+                const iv = setInterval(() => {
+                    if (i < N) {
+                        segs[i].classList.add('on');
+                        i++;
+                        label.textContent = 'Scanning…';
+                        sub.textContent = 'Hold still';
+                        count.textContent = i + ' / 16';
+                        if (i === N) {
+                            label.textContent = 'Done';
+                            label.style.color = '#22c55e';
+                            sub.textContent = 'Face ID is now set up';
+                        }
+                    } else {
+                        clearInterval(iv);
+                        setTimeout(cycle, 2200);
+                    }
+                }, 220);
+            }
+            cycle();
+        })();
+
+        /* ───── Install tabs ───── */
+        function showTab(id, btn) {
+            document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + id).classList.add('active');
+        }
+        function copyCode(id, btn) {
+            navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✓ Copied';
+                btn.style.background = 'var(--green)';
+                btn.style.color = '#fff';
+                btn.style.borderColor = 'var(--green)';
+                setTimeout(() => { btn.innerHTML = orig; btn.style.cssText = ''; }, 1800);
+            });
+        }
+
+        /* ───── Smooth nav links ───── */
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                const t = document.querySelector(a.getAttribute('href'));
+                if (t) { e.preventDefault(); lenis.scrollTo(t); }
+            });
+        });
+    </script>
+
+</body>
+
+</html>
