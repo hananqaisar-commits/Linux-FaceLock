@@ -133,57 +133,8 @@ def main():
         print("✅ NovaUnlock installation complete!")
         print(f"   Check log: {install_dir}/logs/install.log")
 
-    launch_enrollment_wizard()
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
-
-
-# ═══════════════════════════════════════════════════════════════
-#  POST-INSTALL — Launch enrollment wizard as the real user
-# ═══════════════════════════════════════════════════════════════
-def launch_enrollment_wizard():
-    import subprocess
-    from pathlib import Path
-
-    real_user = os.environ.get("SUDO_USER", "") or os.environ.get("USER", "")
-
-    if not real_user or real_user == "root":
-        print("[Nova]  Skipping wizard — run manually:")
-        print("[Nova]  python3 ~/Desktop/NovaUnlock/nova_unlock/ui/setup_flow.py")
-        return
-
-    nova_home  = Path(f"/home/{real_user}/Desktop/NovaUnlock")
-    venv_py    = nova_home / ".venv" / "bin" / "python3"
-    setup_flow = nova_home / "nova_unlock" / "ui" / "setup_flow.py"
-
-    if not venv_py.exists() or not setup_flow.exists():
-        print(f"[Nova]  Wizard not found — enroll manually:")
-        print(f"[Nova]  {venv_py} {setup_flow}")
-        return
-
-    env = os.environ.copy()
-    env.update({
-        "HOME":    f"/home/{real_user}",
-        "USER":    real_user,
-        "LOGNAME": real_user,
-        "DISPLAY": os.environ.get("DISPLAY", ":0"),
-    })
-
-    xauth = Path(f"/home/{real_user}/.Xauthority")
-    if xauth.exists():
-        env["XAUTHORITY"] = str(xauth)
-
-    try:
-        proc = subprocess.Popen([
-            "sudo", "-u", real_user,
-            str(venv_py), str(setup_flow),
-            "--user", real_user,
-            "--mode", "enroll",
-        ], env=env)
-        print(f"\n[Nova]  Enrollment wizard launched (PID {proc.pid})")
-        print(f"[Nova]  Complete face enrollment in the window.\n")
-    except Exception as e:
-        print(f"[Nova]  Wizard launch error: {e}")

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 EAR_THRESHOLD   = 0.0   # 0.0 = auto-calibrate from first frames   # below this = eye closed
 BLINK_FRAMES    = 1      # consecutive frames eye must be closed
 REQUIRED_BLINKS = 1      # blinks needed to pass liveness
-CHALLENGE_SECS  = 6.0    # seconds user has to blink
+CHALLENGE_SECS  = 10.0   # more time to blink    # seconds user has to blink
 
 # ── dlib 68-point landmark eye indices ────────────────────────
 # Left eye  : 36-41   Right eye : 42-47
@@ -162,8 +162,8 @@ class LivenessDetector:
         # dynamically as open_avg * BLINK_RATIO
         self._calib_samples   = []
         self._calib_done      = False
-        self._calib_frames    = 30        # frames to collect for calibration
-        self._blink_ratio     = 0.88      # tuned for narrow EAR range      # threshold = open_avg * ratio
+        self._calib_frames    = 20        # frames to collect for calibration
+        self._blink_ratio     = 0.92      # relaxed — easier blink detection
         self._adaptive_thresh = ear_threshold if ear_threshold > 0 else None
         self._open_ear_avg    = 0.0
 

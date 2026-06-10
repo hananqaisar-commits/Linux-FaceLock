@@ -48,14 +48,21 @@ META_FILE   = FACES_DIR / "users_meta.json"
 MAP_FILE    = DATA_DIR / "face_user_map.json"
 CACHE_FILE  = Path("/tmp/nova_unlock_pam_cache.json")
 LOCK_FILE   = Path("/tmp/nova_unlock_face.lock")
+
+# ── Retry logic constants ─────────────────────────────────────
+MAX_ATTEMPTS     = 5     # failed attempts before showing retry
+ATTEMPT_DELAY    = 2.0   # seconds between attempts
+RETRY_TIMEOUT    = 30.0  # seconds to wait on retry screen
+
+
 LOG_DIR     = NOVA_DIR / "logs"
 LOG_FILE    = LOG_DIR / "face_auth.log"
 
 # ── Daemon Config ──────────────────────────────────────────────
 FACE_LEAVE_TIMEOUT  = 10.0   # seconds before auto-lock triggers
 CHECK_INTERVAL      = 0.15   # seconds between camera frames
-RECOGNITION_THRESH  = 0.52   # face distance threshold (lower = stricter)
-LIVENESS_REQUIRED   = True   # require blink to unlock
+RECOGNITION_THRESH  = 0.62   # loosened for better match rate   # face distance threshold (lower = stricter)
+LIVENESS_REQUIRED   = False  # disabled — face match only   # require blink to unlock
 CAMERA_INDEX        = 0
 
 logging.basicConfig(
@@ -356,6 +363,113 @@ class UnlockSession:
 # ══════════════════════════════════════════════════════════════
 # Main Daemon
 # ══════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════
+# RetryManager — 5 attempts → retry screen → lock → 5 more
+# ══════════════════════════════════════════════════════════════
+class RetryManager:
+    """
+    Manages face unlock attempts:
+    - 5 failed attempts → show retry overlay
+    - User presses retry → resets to 5 more attempts
+    - After retry timeout → triggers lock
+    """
+
+    def __init__(self):
+        self.attempt       = 0
+        self.retry_count   = 0
+        self._state        = "unlocking"  # unlocking | retry_screen
+        self._retry_event  = threading.Event()
+
+    def record_failure(self) -> str:
+        """
+        Record a failed attempt.
+        Returns: 'continue' | 'show_retry' | 'lock'
+        """
+        self.attempt += 1
+        remaining = MAX_ATTEMPTS - self.attempt
+        logger.info("Attempt %d/%d failed", self.attempt, MAX_ATTEMPTS)
+
+        if self.attempt < MAX_ATTEMPTS:
+            return "continue"
+        else:
+            self._state = "retry_screen"
+            return "show_retry"
+
+    def record_success(self):
+        self.attempt    = 0
+        self._state     = "unlocking"
+
+    def do_retry(self):
+        """User pressed retry — reset attempts."""
+        self.attempt     = 0
+        self.retry_count += 1
+        self._state      = "unlocking"
+        logger.info("Retry pressed (retry #%d)", self.retry_count)
+
+    def show_retry_screen(self, cap) -> bool:
+        """
+        Show retry overlay on camera feed.
+        Returns True if user pressed retry, False if timeout.
+        """
+        import cv2 as _cv2
+        import time  as _time
+
+        logger.info("Showing retry screen (timeout=%.0fs)", RETRY_TIMEOUT)
+        deadline = _time.time() + RETRY_TIMEOUT
+        pressed  = False
+
+        def _draw_retry(frame):
+            h, w = frame.shape[:2]
+            # Dark overlay
+            overlay = frame.copy()
+            _cv2.rectangle(overlay, (0, 0), (w, h), (10, 10, 20), -1)
+            _cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
+
+            # Retry icon (circular arrow symbol)
+            cx, cy, r = w//2, h//2 - 40, 50
+            _cv2.circle(frame, (cx, cy), r, (0, 180, 255), 3)
+            # Arrow tip
+            _cv2.arrowedLine(frame,
+                             (cx + r - 10, cy - 15),
+                             (cx + r + 10, cy + 15),
+                             (0, 180, 255), 3, tipLength=0.4)
+
+            _cv2.putText(frame, "Face Not Recognized",
+                         (w//2 - 140, cy + r + 30),
+                         _cv2.FONT_HERSHEY_DUPLEX, 0.8,
+                         (0, 180, 255), 2, _cv2.LINE_AA)
+            _cv2.putText(frame, "Press SPACE or click RETRY",
+                         (w//2 - 155, cy + r + 65),
+                         _cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                         (200, 200, 200), 1, _cv2.LINE_AA)
+
+            secs_left = max(0, int(deadline - _time.time()))
+            _cv2.putText(frame, f"Auto-lock in {secs_left}s",
+                         (w//2 - 80, h - 20),
+                         _cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                         (100, 100, 100), 1, _cv2.LINE_AA)
+            return frame
+
+        while _time.time() < deadline:
+            ret, frame = cap.read()
+            if not ret:
+                _time.sleep(0.1)
+                continue
+
+            frame = _draw_retry(frame)
+            _cv2.imshow("NovaUnlock — Retry", frame)
+
+            key = _cv2.waitKey(100) & 0xFF
+            if key in (ord(' '), ord('r'), ord('R'), 13):  # space/r/enter
+                pressed = True
+                break
+
+        _cv2.destroyAllWindows()
+        return pressed
+
+
+
 def main():
     # Lock file — prevent multiple instances
     if LOCK_FILE.exists():
@@ -405,11 +519,53 @@ def main():
         finally:
             cleanup()
     else:
-        # Single unlock attempt
-        session = UnlockSession(known_encs, known_names)
-        success = session.run()
+        # ── Retry loop: 5 attempts → retry screen → 5 more ──
+        import cv2 as _cv2
+        retry_mgr = RetryManager()
+        cap       = _cv2.VideoCapture(CAMERA_INDEX)
+        cap.set(_cv2.CAP_PROP_FRAME_WIDTH,  640)
+        cap.set(_cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+        overall_success = False
+
+        while True:
+            logger.info("Starting attempt %d/%d",
+                        retry_mgr.attempt + 1, MAX_ATTEMPTS)
+
+            session = UnlockSession(known_encs, known_names)
+            success = session.run()
+
+            if success:
+                overall_success = True
+                retry_mgr.record_success()
+                logger.info("✅ Face unlocked!")
+                break
+
+            # Failed attempt
+            action = retry_mgr.record_failure()
+            logger.info("Action: %s", action)
+
+            if action == "continue":
+                logger.info("Waiting %.1fs before next attempt", ATTEMPT_DELAY)
+                time.sleep(ATTEMPT_DELAY)
+                continue
+
+            elif action == "show_retry":
+                # Show retry screen
+                did_retry = retry_mgr.show_retry_screen(cap)
+                if did_retry:
+                    retry_mgr.do_retry()
+                    logger.info("User retried — resetting attempts")
+                    continue
+                else:
+                    # Timeout — lock screen
+                    logger.info("Retry timeout — locking screen")
+                    trigger_lock("retry_timeout")
+                    break
+
+        cap.release()
         LOCK_FILE.unlink(missing_ok=True)
-        sys.exit(0 if success else 1)
+        sys.exit(0 if overall_success else 1)
 
 
 if __name__ == "__main__":
