@@ -124,7 +124,7 @@ def main():
         print("✅ NovaUnlock installation complete!")
         print()
         print("  Next steps:")
-        print(f"    Enroll face:  {install_dir}/.venv/bin/python3 {enroll_script}")
+        print(f"    Enroll face:  {install_dir}/.venv/bin/python3 {install_dir}/nova_unlock/ui/setup_flow.py --mode enroll")
         print(f"    Test demo:    {install_dir}/.venv/bin/python3 {demo_script} --demo")
         print(f"    Lock screen:  xflock4")
         print(f"    Uninstall:    sudo bash {install_dir}/uninstall.sh")
@@ -155,7 +155,7 @@ def launch_enrollment_wizard():
         print("[Nova]  python3 ~/Desktop/NovaUnlock/nova_unlock/ui/setup_flow.py")
         return
 
-    nova_home  = Path(f"/home/{real_user}/Desktop/NovaUnlock")
+    nova_home  = Path(f"/home/{real_user}/NovaUnlock")
     venv_py    = nova_home / ".venv" / "bin" / "python3"
     setup_flow = nova_home / "nova_unlock" / "ui" / "setup_flow.py"
 
