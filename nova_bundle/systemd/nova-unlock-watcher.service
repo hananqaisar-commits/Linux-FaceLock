@@ -1,0 +1,35 @@
+[Unit]
+Description=NovaUnlock Face Unlock Daemon
+Documentation=https://github.com/YOUR_USERNAME/NovaUnlock
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+
+ExecStartPre=/bin/sleep 5
+
+ExecStart=/bin/bash -lc '\
+  NOVA_HOME="${HOME}/NovaUnlock"; \
+  NOVA_PY="${NOVA_HOME}/.venv/bin/python3"; \
+  NOVA_DAEMON="${NOVA_HOME}/scripts/face_unlock_daemon.pyc"; \
+  \
+  export DISPLAY="${DISPLAY:-:1}"; \
+  export XAUTHORITY="${XAUTHORITY:-/run/user/$(id -u)/gdm/Xauthority}"; \
+  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"; \
+  unset WAYLAND_DISPLAY; \
+  \
+  if [ ! -f "${NOVA_PY}" ]; then \
+    NOVA_PY="$(which python3.13 2>/dev/null || which python3)"; \
+  fi; \
+  \
+  exec "${NOVA_PY}" "${NOVA_DAEMON}"'
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

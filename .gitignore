@@ -1,35 +1,31 @@
-# Source code is PRIVATE — only binary on GitHub
-nova_unlock/
-scripts/
-installer_main.py
-install.sh
-install.sh.backup
-install.sh.*
-*.backup
-*.bak
-*.py
-*.pyc
-__pycache__/
-.venv/
-build/
+# Large binary files — uploaded via gh release only
 dist/
-nova_bundle/
-*.spec
-config/
-data/
+build/
+releases/
+*.dat
+*.tar.gz
+*.SHA256.txt
+*.bz2
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+
+# Logs
 logs/
 *.log
-requirements.txt
-/tmp/nova_*
-.DS_Store
-.vscode/
-.idea/
-.agents/
-skills-lock.json
 
-# WHITELIST
-!README.md
-!LICENSE
-!.gitignore
-!releases/
-!releases/*
+# Temp
+/tmp/
+*.lock
+*.bak
+*.prev_*
+*.old
+
+# VS Code
+.vscode/
