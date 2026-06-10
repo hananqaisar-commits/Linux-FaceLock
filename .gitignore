@@ -29,3 +29,9 @@ logs/
 
 # VS Code
 .vscode/
+releases/
+dist/
+build/
+*.tar.gz
+nova_unlock_installer_v*
+!nova_unlock_installer_*.spec
