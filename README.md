@@ -20,6 +20,18 @@ Linux Face Unlock • Face Recognition Login • PAM Authentication System • P
 
 ---
 
+## 📸 Interface Preview
+
+<div align="center">
+  <img src="assets/facelock_scanning.png" width="45%" alt="FaceLock Scanning UI" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/facelock_success.png" width="45%" alt="FaceLock Success UI" />
+  <br/>
+  <i>Dynamic iOS-inspired FaceLock UI with glowing ring effect and liveness detection.</i>
+</div>
+
+---
+
 ## 📌 Project Overview
 
 **NovaUnlock** is an open-source Linux face authentication and face recognition login system designed to integrate biometric authentication into Linux desktop environments.
