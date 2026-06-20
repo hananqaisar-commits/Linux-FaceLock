@@ -174,21 +174,12 @@ NovaUnlock follows a modular authentication pipeline:
 ---
 ## Installation
 
-### Method 1: Git Clone (Recommended)
+### Method 1: Binary Release
 
 ```bash
-git clone https://github.com/hananqaisar-commits/NovaUnlock.git
-cd NovaUnlock
-sudo bash install.sh
-```
-
-### Method 2: Binary Release
-
-```bash
-wget -O nova_unlock_installer \
-  https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v5.3
-chmod +x nova_unlock_installer
-sudo ./nova_unlock_installer
+wget https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v5.3/nova_unlock_installer_v5.3
+chmod +x nova_unlock_installer_v5.3
+sudo ./nova_unlock_installer_v5.3
 ```
 
 ## Quick Start Guide
