@@ -172,114 +172,118 @@ NovaUnlock follows a modular authentication pipeline:
 7. Authentication result returned to PAM
 
 ---
+## Installation
 
-## 📦 Installation
-
-### Method 1 — Git Clone (Recommended)
+### Method 1: Git Clone (Recommended)
 
 ```bash
 git clone https://github.com/hananqaisar-commits/NovaUnlock.git
 cd NovaUnlock
 sudo bash install.sh
-Method 2 — Binary Release
-wget -O nova_unlock_installer \
-https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v5.3
+```
 
+### Method 2: Binary Release
+
+```bash
+wget -O nova_unlock_installer \
+  https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v4.6/nova_unlock_installer_v5.3
 chmod +x nova_unlock_installer
 sudo ./nova_unlock_installer
-🚀 Quick Start Guide
-1. Install Dependencies
+```
+
+## Quick Start Guide
+
+**1. Install Dependencies**
+```bash
 sudo bash install.sh
-2. Enroll Face Profile
+```
+
+**2. Enroll Face Profile**
+```bash
 cd ~/NovaUnlock
 source .venv/bin/activate
-
 python3 scripts/enroll_gui.py
+```
+For better accuracy, capture multiple samples under different lighting conditions.
 
-Capture multiple samples under different lighting conditions for better accuracy.
-
-3. Test Face Authentication UI
+**3. Test Face Authentication UI**
+```bash
 python3 ~/NovaUnlock/nova_unlock/ui/face_id_screen.py
-4. Lock System
+```
+
+**4. Lock the System**
 
 XFCE:
-
+```bash
 xflock4
+```
 
 GNOME:
-
+```bash
 dbus-send --type=method_call \
---dest=org.gnome.ScreenSaver \
-/org/gnome/ScreenSaver \
-org.gnome.ScreenSaver.Lock
-5. Authenticate Using Face
+  --dest=org.gnome.ScreenSaver \
+  /org/gnome/ScreenSaver \
+  org.gnome.ScreenSaver.Lock
+```
 
-Look at the webcam → system performs face matching → login is granted automatically.
+**5. Authenticate Using Face**
 
-🔒 Security & Privacy Model
+Look at the webcam. The system performs face matching, and login is granted automatically on a successful match.
 
-NovaUnlock is designed with a privacy-first architecture:
+## Security and Privacy Model
 
-Component	Behavior
-Face Data Storage	Local filesystem only
-Network Usage	Not required after installation
-External APIs	Not used
-Telemetry	None
-Biometric Control	User-owned data
-🛠️ System Requirements
-Requirement	Minimum
-Operating System	Linux (Ubuntu / Debian / Fedora / Kali)
-Python Version	3.11 or higher
-Camera	USB or built-in webcam
-RAM	2GB+
-Desktop Environment	GNOME / XFCE / KDE / Cinnamon
-📊 Project Status
+NovaUnlock follows a privacy-first design:
 
-NovaUnlock is under active development.
+| Component | Behavior |
+|---|---|
+| Face Data Storage | Local filesystem only |
+| Network Usage | Not required after installation |
+| External APIs | Not used |
+| Telemetry | None |
+| Biometric Control | User-owned data |
 
-Current focus areas:
+## System Requirements
 
-Improving face recognition accuracy
-Expanding Linux distribution compatibility
-Strengthening PAM integration
-Enhancing system stability
-Improving authentication speed
-⚠️ Known Limitations
-Performance depends on lighting conditions
-Webcam quality affects recognition accuracy
-Liveness detection is implementation-dependent
-Some desktop environments require manual configuration
-🤝 Contributing
+| Requirement | Minimum |
+|---|---|
+| Operating System | Linux (Ubuntu, Debian, Fedora, Kali) |
+| Python Version | 3.11 or higher |
+| Camera | USB or built-in webcam |
+| RAM | 2 GB+ |
+| Desktop Environment | GNOME, XFCE, KDE, Cinnamon |
 
-Contributions are welcome.
+## Project Status
 
-You can contribute by:
+NovaUnlock is under active development. Current focus areas include:
 
-Improving face recognition pipeline
-Fixing Linux compatibility issues
-Enhancing PAM integration
-Improving documentation and examples
-Reporting bugs and issues
-📈 GitHub Topics (Add These in Repo Settings)
+- Improving face recognition accuracy
+- Expanding Linux distribution compatibility
+- Strengthening PAM integration
+- Enhancing system stability
+- Improving authentication speed
 
-Add these in your GitHub repository topics:
+## Known Limitations
 
-linux-face-unlock
-face-recognition
-face-authentication
-linux-login
-pam-module
-biometric-authentication
-ubuntu-face-unlock
-opencv-python
-python-project
-linux-security
-📄 License
+- Performance depends on lighting conditions
+- Webcam quality affects recognition accuracy
+- Liveness detection is implementation-dependent
+- Some desktop environments require manual configuration
+
+## Contributing
+
+Contributions are welcome. Ways to contribute include:
+
+- Improving the face recognition pipeline
+- Fixing Linux compatibility issues
+- Enhancing PAM integration
+- Improving documentation and examples
+- Reporting bugs and issues
+
+## License
 
 This project is open-source. Refer to the LICENSE file for full terms.
 
-👨‍💻 Author
+## Author
 
-Hanan Qaisar
-
-GitHub: https://github.com/hananqaisar-commits
+**Hanan Qaisar**
+GitHub: [https://github.com/hananqaisar-commits](https://github.com/hananqaisar-commits)
