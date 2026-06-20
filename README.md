@@ -174,13 +174,30 @@ NovaUnlock follows a modular authentication pipeline:
 ---
 ## Installation
 
-### Method 1: Binary Release
+### Method 1: Linux Binary Release
 
 ```bash
 wget https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v5.3/nova_unlock_installer_v5.3
 chmod +x nova_unlock_installer_v5.3
 sudo ./nova_unlock_installer_v5.3
 ```
+
+### Method 2: Windows OS Integration (v5.3)
+
+NovaUnlock now supports Windows 10 & 11 via a custom compiled Credential Provider.
+To install the Windows release:
+
+1. **Download the Windows Release ZIP** from GitHub Releases: `nova_unlock_windows_v5.3.zip`
+2. **Extract** the contents to `C:\NovaUnlock\`
+3. **Enroll your Face & Password**:
+   - Run terminal as Administrator.
+   - Execute: `python scripts\windows_enroll_password.py`
+4. **Compile the Credential Provider**:
+   - Open the `credential_provider\` directory in Visual Studio.
+   - Build the C++ project to generate `NovaUnlockProvider.dll`.
+5. **Register the Provider**:
+   - Double-click `register.reg` to enable Face Unlock on your Windows Lock Screen!
+
 
 ## Quick Start Guide
 
