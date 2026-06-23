@@ -1,0 +1,49 @@
+# Large binary files — uploaded via gh release only
+dist/
+build/
+releases/
+*.dat
+*.tar.gz
+*.SHA256.txt
+*.bz2
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+
+# Temp
+/tmp/
+*.lock
+*.bak
+*.prev_*
+*.old
+
+# VS Code
+.vscode/
+releases/
+dist/
+build/
+*.tar.gz
+nova_unlock_installer_v*
+!nova_unlock_installer_*.spec
+nova_unlock/
+build/
+scripts/*.py
+*.py
+*.cpp
+*.h
+nova_unlock/
+build/
+scripts/*.py
+*.py
+*.cpp
+*.h
