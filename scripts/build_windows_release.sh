@@ -37,7 +37,9 @@ done < <(find "$SOURCE_DIR" -type f -print0)
 cat > "$RELEASE_DIR/requirements.txt" << 'REQ'
 numpy>=1.26.0
 opencv-python>=4.9.0
-face_recognition>=1.3.0
+dlib==20.0.1
+face_recognition==1.3.0
+face_recognition_models==0.3.0
 PyQt5>=5.15.0
 PyYAML>=6.0
 REQ
@@ -336,7 +338,9 @@ exit /b 0
 echo [INFO] Installing Python package dependencies...
 %PY% -m ensurepip --upgrade >> "%LOG%" 2>&1
 if errorlevel 1 exit /b 1
-%PY% -m pip install --upgrade pip setuptools wheel >> "%LOG%" 2>&1
+%PY% -m pip install --upgrade pip wheel >> "%LOG%" 2>&1
+if errorlevel 1 exit /b 1
+%PY% -m pip install setuptools==69.5.1 >> "%LOG%" 2>&1
 if errorlevel 1 exit /b 1
 %PY% -m pip install --upgrade --prefer-binary cmake >> "%LOG%" 2>&1
 if errorlevel 1 echo [WARN] pip CMake package install failed. Continuing to main dependencies.
