@@ -21,18 +21,57 @@ fi
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR" "$ROOT_DIR/dist"
 
-# Copy only runtime-safe files from an already prepared Windows build.
-# This intentionally excludes C/C++/Python source so GitHub Releases get binaries only.
+# ── Step 1: Copy non-code assets (DLLs, .reg, etc.) from win_release ──
+# Skips ALL source and bytecode: we will regenerate .pyc from scratch.
 while IFS= read -r -d '' file; do
     rel="${file#"$SOURCE_DIR"/}"
     case "$rel" in
-        *.py|*.pyw|*.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.hxx|*.def|*.sln|*.vcxproj|*.filters|CMakeLists.txt|*/CMakeLists.txt|README*|*/README*|*.md)
+        *.py|*.pyw|*.pyc|*/__pycache__/*|*.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.hxx|*.def|*.sln|*.vcxproj|*.filters|CMakeLists.txt|*/CMakeLists.txt|README*|*/README*|*.md)
             continue
             ;;
     esac
     mkdir -p "$RELEASE_DIR/$(dirname "$rel")"
     cp -p "$file" "$RELEASE_DIR/$rel"
 done < <(find "$SOURCE_DIR" -type f -print0)
+
+# ── Step 2: Compile ALL Python source with python3.11 ──
+# This ensures every .pyc has the correct magic number for the target runtime.
+echo "Compiling Python 3.11 bytecode for Windows release..."
+if ! command -v python3.11 >/dev/null 2>&1; then
+    echo "Error: python3.11 is required to compile compatible .pyc files for Windows." >&2
+    exit 1
+fi
+
+# 2a. nova_unlock package
+mkdir -p "$RELEASE_DIR/nova_unlock"
+cp -a "$ROOT_DIR/nova_unlock/." "$RELEASE_DIR/nova_unlock/"
+python3.11 -m compileall -q -b "$RELEASE_DIR/nova_unlock"
+find "$RELEASE_DIR/nova_unlock" -name '*.py' -delete
+find "$RELEASE_DIR/nova_unlock" -type d -name '__pycache__' -prune -exec rm -rf {} +
+
+# 2b. scripts directory (enroll.py, enroll_gui.py, etc.)
+mkdir -p "$RELEASE_DIR/scripts"
+cp -a "$ROOT_DIR/scripts/"*.py "$RELEASE_DIR/scripts/" 2>/dev/null || true
+python3.11 -m compileall -q -b "$RELEASE_DIR/scripts"
+find "$RELEASE_DIR/scripts" -name '*.py' -delete
+find "$RELEASE_DIR/scripts" -name '*.sh' -delete 2>/dev/null || true
+find "$RELEASE_DIR/scripts" -type d -name '__pycache__' -prune -exec rm -rf {} +
+
+# Verify no .py source remains
+if find "$RELEASE_DIR" -name '*.py' -print -quit | grep -q .; then
+    echo "FATAL: Python source files still present in release bundle!" >&2
+    find "$RELEASE_DIR" -name '*.py' >&2
+    exit 1
+fi
+
+# Verify .pyc files are Python 3.11 (magic 3495)
+BAD_PYC=$(find "$RELEASE_DIR" -name '*.pyc' -exec sh -c 'file "$1" | grep -v "CPython 3.11"' _ {} \;)
+if [ -n "$BAD_PYC" ]; then
+    echo "FATAL: .pyc files with wrong Python version detected:" >&2
+    echo "$BAD_PYC" >&2
+    exit 1
+fi
+echo "[OK] All .pyc files verified as CPython 3.11"
 
 cat > "$RELEASE_DIR/requirements.txt" << 'REQ'
 numpy>=1.26.0
