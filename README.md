@@ -1,20 +1,21 @@
 <div align="center">
+
 # 🔐 NovaUnlock
 
-### Open-Source Face Authentication and Face Unlock System for Linux
+### Next-Generation Face Authentication System for Linux & Windows
 
-Linux Face Unlock • Face Recognition Login • PAM Authentication System • Privacy-First Biometric Security
+Biometric Face Unlock • Dynamic Island UI • PAM Integration • Privacy-First • Zero Cloud Dependency
 
 ---
 
-![Version](https://img.shields.io/badge/version-5.3-4a90d9?style=flat-square)
-![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/platform-Linux-27ae60?style=flat-square&logo=linux&logoColor=white)
-![Desktop](https://img.shields.io/badge/desktop-GNOME%20%7C%20XFCE%20%7C%20KDE%20%7C%20Cinnamon-e67e22?style=flat-square)
-![Authentication](https://img.shields.io/badge/authentication-PAM-orange?style=flat-square)
-![Privacy](https://img.shields.io/badge/privacy-local%20processing-8e44ad?style=flat-square)
-![Status](https://img.shields.io/badge/status-active%20development-brightgreen?style=flat-square)
-![License](https://img.shields.io/badge/license-open--source-lightgrey?style=flat-square)
+![Version](https://img.shields.io/badge/version-5.5-4a90d9?style=for-the-badge)
+![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=for-the-badge&logo=python&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-supported-27ae60?style=for-the-badge&logo=linux&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Desktop](https://img.shields.io/badge/desktop-GNOME%20%7C%20XFCE%20%7C%20KDE%20%7C%20Cinnamon-e67e22?style=for-the-badge)
+![Auth](https://img.shields.io/badge/auth-PAM%20%7C%20Credential%20Provider-orange?style=for-the-badge)
+![Privacy](https://img.shields.io/badge/privacy-100%25%20local-8e44ad?style=for-the-badge)
+![License](https://img.shields.io/badge/license-open--source-lightgrey?style=for-the-badge)
 
 </div>
 
@@ -23,275 +24,294 @@ Linux Face Unlock • Face Recognition Login • PAM Authentication System • P
 ## 📸 Interface Preview
 
 <div align="center">
-  <img src="assets/facelock_scanning.png" width="45%" alt="FaceLock Scanning UI" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="assets/facelock_success.png" width="45%" alt="FaceLock Success UI" />
-  <br/>
-  <i>Dynamic iOS-inspired FaceLock UI with glowing ring effect and liveness detection.</i>
+
+### 🔒 Face Scanning — Dynamic Island UI
+
+<img src="assets/facelock_scanning.png" width="60%" alt="NovaUnlock — FaceLock Scanning State" />
+
+> *iOS-inspired Dynamic Island with lock icon and Face ID scanner. The pill expands with a spring animation and begins biometric scanning.*
+
+---
+
+### 🟢 Authentication Success — 3D Wireframe Sphere
+
+<img src="assets/facelock_success.png" width="60%" alt="NovaUnlock — Face Match Success" />
+
+> *On successful face match: lock icon animates to unlocked (green glow), and an authentic iOS-style 3D wireframe sphere rotates with depth-sorted perspective rendering.*
+
+
+### 👋 Welcome Greeting — Instant Hello Overlay
+
+<img src="assets/hello_welcome.png" width="60%" alt="NovaUnlock — Hello Welcome Screen" />
+
+> *After successful unlock, an elegant full-screen greeting overlay appears instantly — "hello, {Username}" — with a subtle gradient accent line.*
+
 </div>
 
 ---
 
 ## 📌 Project Overview
 
-**NovaUnlock** is an open-source Linux face authentication and face recognition login system designed to integrate biometric authentication into Linux desktop environments.
+**NovaUnlock** is an open-source face authentication system that replaces traditional password login with real-time facial recognition. It integrates directly with **Linux PAM** and **Windows Credential Provider** for system-level biometric authentication.
 
-It enables users to authenticate system access using facial recognition through a webcam, integrated with Linux PAM (Pluggable Authentication Modules).
+Every aspect of the system is designed for **local processing** — no cloud APIs, no telemetry, no external dependencies. Your biometric data never leaves your device.
 
-The system is designed for **local processing**, ensuring biometric data remains on the user’s device.
+### Why NovaUnlock?
 
----
-
-## 🔍 SEO Keywords (Important for Search Indexing)
-
-This project targets the following search terms:
-
-- Linux Face Unlock
-- Linux Face Recognition Login
-- Face Authentication for Linux
-- Ubuntu Face Unlock System
-- PAM Face Authentication Linux
-- Biometric Login for Linux Desktop
-- Open Source Face Recognition System
-- Face Login Linux GitHub
-- AI Face Unlock Linux (if ML module enabled)
+| Feature | NovaUnlock | Traditional Login |
+|---|---|---|
+| Authentication Speed | < 1 second | Manual typing |
+| Security Layer | Biometric + Password fallback | Password only |
+| Privacy | 100% local processing | Varies |
+| User Experience | iOS-quality animations | Standard OS dialogs |
+| Multi-Platform | Linux + Windows | OS-specific |
 
 ---
 
 ## 🎯 Core Features
 
-### 🔓 Face Authentication Login
-Authenticate Linux users using real-time facial recognition via webcam.
+### 🔓 Biometric Face Authentication
+Real-time face recognition via webcam with configurable matching thresholds. Supports multiple face encodings per user for improved accuracy across lighting conditions.
 
-### 🧩 PAM Integration
-Seamless integration with Linux **PAM (Pluggable Authentication Modules)** for system-level login and authentication.
+### 🎨 Dynamic Island UI
+An iOS-inspired animated interface built with PyQt5 featuring:
+- **Spring-physics pill animation** with smooth expand/collapse
+- **3D wireframe sphere** with perspective projection and depth-sorted rendering
+- **Animated lock icon** that transitions from locked → unlocked with green glow
+- **Face ID scanner icon** with natural eye-blink animation
+- **Shake rejection effect** with spring-damped horizontal oscillation
+- **Sound design** — procedurally generated pluck, bell, and whoosh audio cues
 
-### 💾 Local Biometric Processing
-All face detection and recognition runs locally:
+### 👋 Instant Welcome Overlay
+After successful authentication, a full-screen greeting overlay displays instantly via Unix socket IPC — pre-warmed during the scan phase for zero-latency display.
 
-- No cloud processing
-- No external API calls
-- No telemetry or tracking
+### 🧩 PAM Integration (Linux)
+Seamless integration with Linux **Pluggable Authentication Modules** for:
+- Login screen authentication
+- Lock screen unlock
+- `sudo` elevation (optional)
 
-### 👥 Multi-User Support
-Supports multiple Linux user profiles with separate face data.
+### 🪟 Windows Credential Provider
+Native Windows 10/11 support via a compiled C++ Credential Provider DLL that interfaces with LSA Secrets for secure password handling.
 
-### 🔑 Secure Password Fallback
-Automatically falls back to password authentication if face recognition fails.
-
-### 📷 Webcam Support
-Compatible with internal and external USB cameras.
-
-### 🖥️ Desktop Environment Support
-Tested on:
-
-- Ubuntu (GNOME)
-- Debian
-- Kali Linux (XFCE / GNOME)
-- Fedora
-- KDE Plasma (experimental support)
-
----
-
-# 🔓 NovaUnlock v5.3 — Face Lock System for Linux
-
-> Facial recognition login & lock screen for Linux desktops
-> Works on XFCE · GNOME · KDE · MATE · Cinnamon
-
----
-
-## 🆕 Changelog — v5.3
-
-| Feature | Description |
-|---------|-------------|
-| 🔴 **Anti-Spoof Blink Liveness** | Adaptive EAR detection — rejects photos/screens/masks |
-| 🟠 **GTK Theme Auto-Switch** | Auto dark/light from gsettings · xfconf · gtk-3.0 |
-| 🟢 **Auto-Lock on Face Leave** | Locks screen after 10s of face absence |
-
-### 🔴 Liveness Detection
-- **Adaptive EAR calibration** — learns YOUR eye ratio in 30 frames
-- dlib 68-point landmarks (primary) + 5-strategy face detection
-- MediaPipe Tasks / Legacy / OpenCV Haar fallback chain
+### 🔴 Anti-Spoof Liveness Detection
+- **Adaptive EAR calibration** — learns your eye ratio in 30 frames
+- dlib 68-point landmarks with 5-strategy face detection fallback
+- MediaPipe Tasks / Legacy / OpenCV Haar cascade chain
 - Rejects: printed photos, phone screens, static masks
 
-### 🟠 GTK Theme
-- Auto-detects dark/light at startup and every 6 seconds
-- Sources: gsettings → gtk-3.0/settings.ini → xfconf → GTK_THEME
-- Full Qt stylesheet for both modes
+### 💾 100% Local Processing
+- No cloud APIs or external network calls
+- No telemetry or tracking
+- All face encoding data stored on local filesystem
+- User-owned biometric data
 
-### 🟢 Auto-Lock Guard
-- `FacePresenceGuard` — background thread monitors camera
-- Triggers screen lock after `FACE_LEAVE_TIMEOUT=10s`
-- Run: `python3 scripts/face_unlock_daemon.py --guard`
+### 👥 Multi-User Support
+Separate face profiles per Linux/Windows user with independent encoding databases.
+
+### 🔑 Secure Password Fallback
+Automatic fallback to password authentication when:
+- Face recognition fails after 3 attempts
+- Camera is unavailable
+- Liveness check fails
 
 ---
 
+## 🖥️ Platform Support
 
-## 🆕 What's New in v5.3
+### Linux
+| Distribution | Desktop Environment | Status |
+|---|---|---|
+| Ubuntu 22.04+ | GNOME | ✅ Fully Tested |
+| Debian 12+ | GNOME / XFCE | ✅ Fully Tested |
+| Kali Linux | XFCE / GNOME | ✅ Fully Tested |
+| Fedora 38+ | GNOME | ✅ Tested |
+| KDE Plasma | KDE | ⚠️ Experimental |
+| Cinnamon | Cinnamon | ✅ Tested |
 
-### 🔴 Feature 1 — Anti-Spoof Blink Liveness Detection
-- Eye Aspect Ratio (EAR) algorithm via MediaPipe FaceMesh
-- Rejects: printed photos, phone/tablet screens, static masks
-- Configurable blink count + timeout challenge
-- Real-time EAR overlay on camera feed
+### Windows
+| Version | Status |
+|---|---|
+| Windows 10 (21H2+) | ✅ Supported |
+| Windows 11 | ✅ Supported |
 
-### 🟠 Feature 2 — GTK Theme Auto-Switch
-- Auto-detects system dark/light theme at startup
-- Supports: gsettings, gtk-3.0/settings.ini, xfconf (XFCE), GTK_THEME env
-- Polls for runtime theme changes every 6 seconds
-- Full Qt stylesheet for dark + light palette
-- Singleton `get_theme()` available project-wide
+---
 
-### 🟢 Feature 3 — Auto-Lock on Face Leave
-- Continuous face presence monitoring via background thread
-- Triggers screen lock when enrolled face absent for 10+ seconds
-- Run daemon in guard mode: `python3 scripts/face_unlock_daemon.py --guard`
-- Systemd service included for auto-start on login
+## 🚀 Installation
+
+### Method 1: Linux — Quick Install
+
+```bash
+# Clone the repository
+git clone https://github.com/hananqaisar-commits/NovaUnlock.git
+cd NovaUnlock
+
+# Run the installer (installs dependencies + PAM module)
+sudo bash install.sh
+```
+
+### Method 2: Linux — Binary Release
+
+```bash
+wget https://github.com/hananqaisar-commits/NovaUnlock/releases/latest/download/nova_unlock_installer
+chmod +x nova_unlock_installer
+sudo ./nova_unlock_installer
+```
+
+### Method 3: Windows — Credential Provider
+
+1. **Download** the Windows release ZIP from [GitHub Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases)
+2. **Extract** to `C:\NovaUnlock\`
+3. **Enroll Face & Password**:
+   ```powershell
+   # Run as Administrator
+   python scripts\windows_enroll_password.py
+   ```
+4. **Build Credential Provider** — Open `credential_provider\` in Visual Studio, build the C++ project
+5. **Register** — Double-click `register.reg` to enable Face Unlock on the Windows Lock Screen
+
+---
+
+## ⚡ Quick Start (Linux)
+
+```bash
+# 1. Activate virtual environment
+cd ~/NovaUnlock
+source .venv/bin/activate
+
+# 2. Enroll your face (GUI wizard with multi-angle capture)
+python3 scripts/enroll_gui.py
+
+# 3. Test the Face ID animation (demo mode)
+python3 -m nova_unlock.ui.face_id_screen
+
+# 4. Test live face authentication
+python3 -m nova_unlock.ui.face_id_screen --test
+
+# 5. Lock your screen and authenticate with your face!
+xflock4                    # XFCE
+loginctl lock-session      # GNOME / systemd
+```
 
 ---
 
 ## 🧠 System Architecture
 
-NovaUnlock follows a modular authentication pipeline:
-
-- Face Detection Module (OpenCV)
-- Face Encoding Engine
-- User Enrollment System
-- Authentication Controller
-- PAM Integration Layer
-- Desktop Session Watcher
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    NovaUnlock Architecture                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐   ┌──────────────┐   ┌────────────────────┐  │
+│  │  Camera   │──▶│ Face Detect  │──▶│ Face Recognition   │  │
+│  │  Input    │   │  (OpenCV)    │   │  (face_recognition)│  │
+│  └──────────┘   └──────────────┘   └────────┬───────────┘  │
+│                                              │              │
+│                                    ┌─────────▼──────────┐   │
+│                                    │  Liveness Check    │   │
+│                                    │  (EAR + Blink)     │   │
+│                                    └─────────┬──────────┘   │
+│                                              │              │
+│  ┌──────────────────────────────────────────▼───────────┐  │
+│  │              Authentication Controller               │  │
+│  │   Match face encoding → Stored profiles → Decision   │  │
+│  └───────────┬──────────────────────────┬───────────────┘  │
+│              │                          │                   │
+│  ┌───────────▼──────────┐  ┌───────────▼───────────────┐  │
+│  │  Linux PAM Module    │  │ Windows Credential Provider│  │
+│  │  (pam_nova_unlock)   │  │  (NovaUnlockProvider.dll) │  │
+│  └──────────────────────┘  └───────────────────────────┘  │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Dynamic Island UI (PyQt5)               │  │
+│  │  Spring animations • 3D sphere • Sound design       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │           Hello Overlay (Unix Socket IPC)            │  │
+│  │  Pre-warmed subprocess • Instant greeting display    │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### Authentication Flow
 
-1. User triggers login or screen lock
-2. PAM requests authentication module
-3. Webcam captures live input frame
-4. Face detection extracts facial region
-5. Feature encoding is generated
-6. Encoded vector is matched with stored profile
-7. Authentication result returned to PAM
+1. **Trigger** — User locks screen or initiates login
+2. **PAM Request** — System calls NovaUnlock authentication module
+3. **UI Launch** — Dynamic Island pill animates into view with spring physics
+4. **Capture** — Webcam captures 4 frames with face detection (HOG model)
+5. **Encode** — Face encodings extracted and averaged for noise reduction
+6. **Match** — Encoded vector compared against stored user profiles
+7. **Liveness** — EAR blink detection validates live presence
+8. **Result** — Success: 3D sphere + unlock animation → screen unlocks
+9. **Welcome** — Instant "hello, {user}" greeting overlay via pre-warmed socket
 
 ---
-## Installation
 
-### Method 1: Linux Binary Release
+## 🔐 Security & Privacy
 
-```bash
-wget https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v5.3/nova_unlock_installer_v5.3
-chmod +x nova_unlock_installer_v5.3
-sudo ./nova_unlock_installer_v5.3
-```
-
-### Method 2: Windows OS Integration (v5.3)
-
-NovaUnlock now supports Windows 10 & 11 via a custom compiled Credential Provider.
-To install the Windows release:
-
-1. **Download the Windows Release ZIP** from GitHub Releases: `nova_unlock_windows_v5.3.zip`
-2. **Extract** the contents to `C:\NovaUnlock\`
-3. **Enroll your Face & Password**:
-   - Run terminal as Administrator.
-   - Execute: `python scripts\windows_enroll_password.py`
-4. **Compile the Credential Provider**:
-   - Open the `credential_provider\` directory in Visual Studio.
-   - Build the C++ project to generate `NovaUnlockProvider.dll`.
-5. **Register the Provider**:
-   - Double-click `register.reg` to enable Face Unlock on your Windows Lock Screen!
-
-
-## Quick Start Guide
-
-**1. Install Dependencies**
-```bash
-sudo bash install.sh
-```
-
-**2. Enroll Face Profile**
-```bash
-cd ~/NovaUnlock
-source .venv/bin/activate
-python3 scripts/enroll_gui.py
-```
-For better accuracy, capture multiple samples under different lighting conditions.
-
-**3. Test Face Authentication UI**
-```bash
-python3 ~/NovaUnlock/nova_unlock/ui/face_id_screen.py
-```
-
-**4. Lock the System**
-
-XFCE:
-```bash
-xflock4
-```
-
-GNOME:
-```bash
-dbus-send --type=method_call \
-  --dest=org.gnome.ScreenSaver \
-  /org/gnome/ScreenSaver \
-  org.gnome.ScreenSaver.Lock
-```
-
-**5. Authenticate Using Face**
-
-Look at the webcam. The system performs face matching, and login is granted automatically on a successful match.
-
-## Security and Privacy Model
-
-NovaUnlock follows a privacy-first design:
-
-| Component | Behavior |
+| Component | Implementation |
 |---|---|
-| Face Data Storage | Local filesystem only |
-| Network Usage | Not required after installation |
-| External APIs | Not used |
-| Telemetry | None |
-| Biometric Control | User-owned data |
+| **Face Data** | Stored as numpy arrays on local filesystem only |
+| **Network** | Zero network calls — fully offline after install |
+| **External APIs** | None used — all processing is local |
+| **Telemetry** | None — no analytics, no tracking |
+| **Biometric Control** | User-owned, user-deletable data |
+| **Password Storage** | Linux: PAM / Windows: LSA Secrets (encrypted) |
+| **Anti-Spoof** | EAR blink liveness + multi-frame validation |
 
-## System Requirements
+---
+
+## 📋 System Requirements
 
 | Requirement | Minimum |
 |---|---|
-| Operating System | Linux (Ubuntu, Debian, Fedora, Kali) |
-| Python Version | 3.11 or higher |
-| Camera | USB or built-in webcam |
-| RAM | 2 GB+ |
-| Desktop Environment | GNOME, XFCE, KDE, Cinnamon |
+| **Operating System** | Linux (Ubuntu, Debian, Fedora, Kali) or Windows 10/11 |
+| **Python** | 3.11 or higher |
+| **Camera** | USB or built-in webcam |
+| **RAM** | 2 GB+ |
+| **Desktop (Linux)** | GNOME, XFCE, KDE, Cinnamon |
 
-## Project Status
+---
 
-NovaUnlock is under active development. Current focus areas include:
+## 🆕 Changelog
 
-- Improving face recognition accuracy
-- Expanding Linux distribution compatibility
-- Strengthening PAM integration
-- Enhancing system stability
-- Improving authentication speed
+### v5.5 — Current Release
+- 🪟 Windows 10/11 Credential Provider support
+- 🎨 Dynamic Island UI with 3D wireframe sphere
+- 👋 Instant welcome overlay via Unix socket IPC
+- 🔊 Procedural sound design (pluck, bell, whoosh)
 
-## Known Limitations
+### v1.32
+- 🔴 Anti-spoof blink liveness detection (adaptive EAR)
+- 🟠 GTK theme auto-switch (dark/light)
+- 🟢 Auto-lock on face leave (10s timeout)
 
-- Performance depends on lighting conditions
-- Webcam quality affects recognition accuracy
-- Liveness detection is implementation-dependent
-- Some desktop environments require manual configuration
+---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome. Ways to contribute include:
+Contributions are welcome! Areas of interest:
 
-- Improving the face recognition pipeline
-- Fixing Linux compatibility issues
-- Enhancing PAM integration
-- Improving documentation and examples
-- Reporting bugs and issues
+- **Face Recognition Pipeline** — Improving accuracy and speed
+- **Linux Compatibility** — Testing on more distributions
+- **Windows Integration** — Credential Provider improvements
+- **UI/UX** — Animation refinements and accessibility
+- **Documentation** — Tutorials, guides, and examples
+- **Security** — Liveness detection hardening
 
-## License
+---
 
-This project is open-source. Refer to the LICENSE file for full terms.
+## 📄 License
 
-## Author
+This project is open-source. See the [LICENSE](LICENSE) file for details.
 
-**Hanan Qaisar**
-GitHub: [https://github.com/hananqaisar-commits](https://github.com/hananqaisar-commits)
+---
+
+<div align="center">
+
+**Built by [Hanan Qaisar](https://github.com/hananqaisar-commits)**
+
+*Secure your system with your face — not your password.*
+
+</div>
