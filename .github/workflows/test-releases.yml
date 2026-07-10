@@ -3,6 +3,19 @@ name: Test & Publish Releases
 # Validates every NovaUnlock v1.32 package on the appropriate platform, then
 # flips the GitHub release to published once all five test jobs are green.
 #
+# What each native-package job actually verifies (regression guard for the
+# dlib / face_recognition dependency handling):
+#   1. Structural: the package does NOT declare pip-only packages
+#      (dlib / face_recognition / face_recognition_models) as hard OS
+#      dependencies — they do not exist in apt / dnf / pacman repos, so
+#      declaring them makes the package uninstallable.
+#   2. Structural: the post-install mechanism pip-installs into the SYSTEM
+#      site-packages (--break-system-packages) and does NOT use
+#      `pip install --user` (PEP 370 disables user-site for uid 0, so the
+#      root / system daemon could never import --user installs).
+#   3. Functional: the EXACT pip command the post-install runs actually
+#      resolves and imports in that OS environment (real dlib build).
+#
 # Triggers:
 #   - manual "Run workflow" button (workflow_dispatch)
 #   - push that touches this workflow file only (so committing it kicks CI)
@@ -27,6 +40,10 @@ concurrency:
 env:
   RELEASE_TAG: v1.32
 
+# Reusable step body for the functional ML-dependency check. The post-install
+# script runs:  python3 -m pip install --break-system-packages <mods>
+# We reproduce that exact command here (with retries) and assert the modules
+# import — proving the dependency strategy works in this OS environment.
 jobs:
   # ---------------------------------------------------------------------------
   # Debian / Ubuntu
@@ -56,6 +73,35 @@ jobs:
           test -d extract/opt/novaunlock/nova_unlock \
             || { echo "missing nova_unlock tree"; exit 1; }
           echo "DEB OK ($(find extract -type f | wc -l) files)"
+      - name: Regression gate — no impossible apt deps
+        run: |
+          DEB=$(ls artifacts/*.deb)
+          DEPS=$(dpkg-deb -f "$DEB" Depends)
+          echo "Depends: $DEPS"
+          if echo "$DEPS" | grep -E "python3-dlib|python3-face-recognition|python3-face-recognition-models"; then
+            echo "FAIL: deb declares pip-only packages as apt Depends (uninstallable)"; exit 1
+          fi
+          echo "deb dependency gate OK"
+      - name: Regression gate — postinst uses --break-system-packages, not --user
+        run: |
+          if grep -rq "pip install --user" extract/opt/novaunlock/; then
+            echo "FAIL: package uses 'pip install --user' (not importable by root daemon)"; exit 1
+          fi
+          if ! grep -rq -- "--break-system-packages" extract/opt/novaunlock/nova_pkg_postinstall.sh; then
+            echo "FAIL: postinstall missing --break-system-packages"; exit 1
+          fi
+          echo "postinst strategy gate OK"
+      - name: Functional — install + import ML deps (as postinst does)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip cmake g++ libboost-all-dev
+          for i in 1 2 3; do
+            sudo python3 -m pip install --break-system-packages --retries 5 \
+              dlib face_recognition face_recognition_models && break
+            echo "pip attempt $i failed, retrying..."; sleep 5
+          done
+          sudo python3 -c "import dlib, face_recognition, face_recognition_models; print('ML DEPS OK:', dlib.__version__)" \
+            || { echo "FAIL: ML deps did not import"; exit 1; }
 
   # ---------------------------------------------------------------------------
   # Fedora / RHEL  — run inside a real Fedora container so rpm2cpio handles the
@@ -88,6 +134,33 @@ jobs:
           test -d extract/opt/novaunlock/nova_unlock \
             || { echo "missing nova_unlock tree"; exit 1; }
           echo "RPM OK ($(find extract -type f | wc -l) files)"
+      - name: Regression gate — no impossible RPM deps
+        run: |
+          RPM=$(ls artifacts/*.rpm)
+          if rpm -qp --requires "$RPM" | grep -iE "^dlib|^face_recognition|^python3-dlib|python3-face-recognition"; then
+            echo "FAIL: rpm declares pip-only packages as Requires (uninstallable)"; exit 1
+          fi
+          echo "rpm dependency gate OK"
+      - name: Regression gate — %post uses --break-system-packages, not --user
+        run: |
+          RPM=$(ls artifacts/*.rpm)
+          if rpm -qp --scripts "$RPM" | grep -E "pip install --user"; then
+            echo "FAIL: rpm %post uses 'pip install --user' (not importable by root daemon)"; exit 1
+          fi
+          if ! rpm -qp --scripts "$RPM" | grep -q "nova_pkg_postinstall.sh configure"; then
+            echo "FAIL: rpm %post does not invoke shared postinstall"; exit 1
+          fi
+          echo "rpm postinst strategy gate OK"
+      - name: Functional — install + import ML deps (as postinst does)
+        run: |
+          dnf install -y python3-pip cmake gcc-c++ boost-devel
+          for i in 1 2 3; do
+            python3 -m pip install --break-system-packages --retries 5 \
+              dlib face_recognition face_recognition_models && break
+            echo "pip attempt $i failed, retrying..."; sleep 5
+          done
+          python3 -c "import dlib, face_recognition, face_recognition_models; print('ML DEPS OK:', dlib.__version__)" \
+            || { echo "FAIL: ML deps did not import"; exit 1; }
 
   # ---------------------------------------------------------------------------
   # Arch Linux
@@ -119,6 +192,34 @@ jobs:
           test -f extract/.PKGINFO \
             || { echo "missing .PKGINFO"; exit 1; }
           echo "ARCH OK ($(find extract -type f | wc -l) files)"
+      - name: Regression gate — no impossible Arch deps
+        run: |
+          PKG=$(ls artifacts/*.pkg.tar.zst)
+          tar --zstd -xf "$PKG" -C /tmp .PKGINFO 2>/dev/null || true
+          if grep -E "^depend = (dlib|face_recognition|face_recognition_models)" /tmp/.PKGINFO; then
+            echo "FAIL: arch declares pip-only packages as depends (uninstallable)"; exit 1
+          fi
+          echo "arch dependency gate OK"
+      - name: Regression gate — .INSTALL uses --break-system-packages, not --user
+        run: |
+          PKG=$(ls artifacts/*.pkg.tar.zst)
+          if tar --zstd -xf "$PKG" -O .INSTALL 2>/dev/null | grep -E "pip install --user"; then
+            echo "FAIL: arch .INSTALL uses 'pip install --user' (not importable by root daemon)"; exit 1
+          fi
+          if ! tar --zstd -xf "$PKG" -O .INSTALL 2>/dev/null | grep -q "nova_pkg_postinstall.sh configure"; then
+            echo "FAIL: arch .INSTALL does not invoke shared postinstall"; exit 1
+          fi
+          echo "arch postinst strategy gate OK"
+      - name: Functional — install + import ML deps (as postinst does)
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pip cmake g++ libboost-all-dev
+          for i in 1 2 3; do
+            sudo python3 -m pip install --break-system-packages --retries 5 \
+              dlib face_recognition face_recognition_models && break
+            echo "pip attempt $i failed, retrying..."; sleep 5
+          done
+          sudo python3 -c "import dlib, face_recognition, face_recognition_models; print('ML DEPS OK:', dlib.__version__)" \
+            || { echo "FAIL: ML deps did not import"; exit 1; }
 
   # ---------------------------------------------------------------------------
   # Universal Linux binary
@@ -142,6 +243,16 @@ jobs:
           chmod +x "$BIN"
           "$BIN" --help 2>&1 | head -n 3 || true
           echo "BIN OK ($(stat -c %s "$BIN") bytes)"
+      - name: Regression gate — installer uses a venv, not pip --user
+        run: |
+          # The .bin bundles install.sh; confirm the source strategy is sound.
+          if grep -rqE "pip install --user .*(dlib|face_recognition)" install.sh scripts/ 2>/dev/null; then
+            echo "FAIL: installer uses 'pip install --user' for ML deps"; exit 1
+          fi
+          if ! grep -qE "nova_pip_install|VENV" install.sh; then
+            echo "FAIL: installer does not use a private venv for deps"; exit 1
+          fi
+          echo "bin installer strategy gate OK"
 
   # ---------------------------------------------------------------------------
   # Windows
