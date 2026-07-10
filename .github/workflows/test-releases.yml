@@ -84,7 +84,10 @@ jobs:
           echo "deb dependency gate OK"
       - name: Regression gate — postinst uses --break-system-packages, not --user
         run: |
-          if grep -rq "pip install --user" extract/opt/novaunlock/; then
+          # Ignore full-line comments — a doc comment that mentions the forbidden
+          # pattern must not trip the gate; only an actual `pip install --user`
+          # command should fail the build.
+          if grep -rn "pip install --user" extract/opt/novaunlock/ | grep -vE '^\S+:[0-9]+:\s*#'; then
             echo "FAIL: package uses 'pip install --user' (not importable by root daemon)"; exit 1
           fi
           if ! grep -rq -- "--break-system-packages" extract/opt/novaunlock/nova_pkg_postinstall.sh; then
@@ -152,7 +155,7 @@ jobs:
       - name: Regression gate — %post uses --break-system-packages, not --user
         run: |
           RPM=$(ls artifacts/*.rpm)
-          if rpm -qp --scripts "$RPM" | grep -E "pip install --user"; then
+          if rpm -qp --scripts "$RPM" | grep -vE '^\s*#' | grep -E "pip install --user"; then
             echo "FAIL: rpm %post uses 'pip install --user' (not importable by root daemon)"; exit 1
           fi
           if ! rpm -qp --scripts "$RPM" | grep -q "nova_pkg_postinstall.sh configure"; then
@@ -216,7 +219,7 @@ jobs:
       - name: Regression gate — .INSTALL uses --break-system-packages, not --user
         run: |
           PKG=$(ls artifacts/*.pkg.tar.zst)
-          if tar --zstd -xf "$PKG" -O .INSTALL 2>/dev/null | grep -E "pip install --user"; then
+          if tar --zstd -xf "$PKG" -O .INSTALL 2>/dev/null | grep -vE '^\s*#' | grep -E "pip install --user"; then
             echo "FAIL: arch .INSTALL uses 'pip install --user' (not importable by root daemon)"; exit 1
           fi
           if ! tar --zstd -xf "$PKG" -O .INSTALL 2>/dev/null | grep -q "nova_pkg_postinstall.sh configure"; then

@@ -55,9 +55,8 @@ DESK
 cat > "$STAGE/.INSTALL" << 'INSTALL'
 post_install() {
     # The shared postinstall (ensure_runtime_deps) pip-installs dlib / face_recognition
-    # into the SYSTEM site-packages. Do NOT use `pip install --user` here: the daemon
-    # runs as root / system python, which ignores user-site (PEP 370, uid 0), so
-    # --user installs would never be importable at runtime.
+    # into the SYSTEM site-packages. Do NOT install into the per-user site-packages
+    # (PEP 370: uid 0 ignores user-site), or the daemon could never import them.
     [ -x /opt/novaunlock/nova_pkg_postinstall.sh ] && /opt/novaunlock/nova_pkg_postinstall.sh configure || true
 }
 pre_remove() {
