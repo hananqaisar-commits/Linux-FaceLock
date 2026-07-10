@@ -54,6 +54,7 @@ ExecStart=/bin/bash -c '/usr/bin/python3 /opt/novaunlock/scripts/face_unlock_dae
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:0
+Environment=NOVA_FACES_DIR=/var/lib/novaunlock/faces
 
 [Install]
 WantedBy=graphical-session.target

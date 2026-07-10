@@ -166,6 +166,39 @@ except Exception:
 PY
 }
 
+# ── Canonical faces directory (single source of truth) ───────────────
+# Every entrypoint (enrollment, greeter, lock-screen daemon) resolves faces
+# via face_recognizer.get_faces_dir() → /var/lib/novaunlock/faces. We create
+# that dir here (0700, owned by the human user) and migrate any profiles left
+# behind in older locations so enrollment + recognition finally agree.
+setup_faces_dir() {
+    local FACES=/var/lib/novaunlock/faces
+    mkdir -p "$FACES"
+    chmod 700 "$FACES"
+    if [ -n "${REAL_USER:-}" ] && id "$REAL_USER" >/dev/null 2>&1; then
+        chown -R "$REAL_USER":"${REAL_GROUP:-$REAL_USER}" "$FACES" 2>/dev/null || true
+    fi
+
+    # Migrate existing profiles from any legacy location. cp -n (no-clobber)
+    # never overwrites a newer canonical file.
+    local src
+    for src in \
+        /opt/novaunlock/data/faces \
+        "${REAL_HOME:-}/NovaUnlock/data/faces" \
+        "${REAL_HOME:-}/Desktop/NovaUnlock/data/faces" \
+        "$HOME/NovaUnlock/data/faces" \
+        "$HOME/Desktop/NovaUnlock/data/faces" ; do
+        [ -d "$src" ] || continue
+        for f in "$src"/*.npy "$src"/users_meta.json; do
+            [ -f "$f" ] || continue
+            if cp -n "$f" "$FACES/" 2>/dev/null; then
+                log "migrated face profile: $(basename "$f")"
+            fi
+        done
+    done
+    ok "Faces dir ready: $FACES"
+}
+
 # ── PAM auth script (reads the short-lived face-match cache) ───────────
 write_pam_auth_script() {
     cat > "$PAM_SCRIPT_BIN" << 'PAMSCRIPT'
@@ -289,6 +322,7 @@ export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export PULSE_SERVER="unix:${XDG_RUNTIME_DIR}/pulse/native"
+export NOVA_FACES_DIR="/var/lib/novaunlock/faces"
 
 WLOG=/var/log/novaunlock/watcher.log
 FLOG=/var/log/novaunlock/face_auth.log
@@ -369,6 +403,7 @@ for p in /var/run/lightdm/root/$DISP /var/run/lightdm/root/:0 /var/run/lightdm/r
 done
 [ -z "$XAUTH" ] && echo "XAUTH not found, aborting" && exit 0
 export DISPLAY="$DISP" XAUTHORITY="$XAUTH" XDG_RUNTIME_DIR=/tmp/runtime-nova-unlock HOME=/root
+export NOVA_FACES_DIR="/var/lib/novaunlock/faces"
 mkdir -p /tmp/runtime-nova-unlock; chmod 700 /tmp/runtime-nova-unlock
 rm -f "$RESULT"
 nohup /usr/bin/python3 /opt/novaunlock/scripts/face_login_greeter.pyc >/tmp/nova_unlock_greeter_ui.out 2>&1 &
@@ -439,6 +474,7 @@ exec >>"$LOG" 2>&1
 echo "==== $(date) GDM greeter hook ===="
 sleep 3
 DISP="${DISPLAY:-:0}"; export DISPLAY="$DISP"
+export NOVA_FACES_DIR="/var/lib/novaunlock/faces"
 for SESSION in /var/run/gdm3/*; do
     [ -d "$SESSION" ] && XAUTH="$SESSION/database" && [ -f "$XAUTH" ] && break
 done
@@ -520,6 +556,7 @@ case "$ACTION" in
         detect_user
         detect_env
         ensure_runtime_deps
+        setup_faces_dir
         compile_tree
         write_pam_auth_script
         configure_pam
