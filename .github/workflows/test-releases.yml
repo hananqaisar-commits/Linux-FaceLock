@@ -140,6 +140,14 @@ jobs:
           if rpm -qp --requires "$RPM" | grep -iE "^dlib|^face_recognition|^python3-dlib|python3-face-recognition"; then
             echo "FAIL: rpm declares pip-only packages as Requires (uninstallable)"; exit 1
           fi
+          # pam_script on Fedora is spelled with an UNDERSCORE; the hyphenated
+          # name does not resolve and makes the package uninstallable.
+          if rpm -qp --requires "$RPM" | grep -q "pam-script"; then
+            echo "FAIL: rpm Requires 'pam-script' (wrong name; Fedora package is 'pam_script')"; exit 1
+          fi
+          if ! rpm -qp --requires "$RPM" | grep -q "pam_script"; then
+            echo "FAIL: rpm missing pam_script dependency"; exit 1
+          fi
           echo "rpm dependency gate OK"
       - name: Regression gate — %post uses --break-system-packages, not --user
         run: |
@@ -198,6 +206,11 @@ jobs:
           tar --zstd -xf "$PKG" -C /tmp .PKGINFO 2>/dev/null || true
           if grep -E "^depend = (dlib|face_recognition|face_recognition_models)" /tmp/.PKGINFO; then
             echo "FAIL: arch declares pip-only packages as depends (uninstallable)"; exit 1
+          fi
+          # Arch ships the cv2 module via python-opencv (opencv alone no longer
+          # guarantees the import); require the bindings package explicitly.
+          if ! grep -E "^depend = python-opencv" /tmp/.PKGINFO; then
+            echo "FAIL: arch missing python-opencv dependency (cv2 module would not import)"; exit 1
           fi
           echo "arch dependency gate OK"
       - name: Regression gate — .INSTALL uses --break-system-packages, not --user
