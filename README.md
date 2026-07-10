@@ -195,11 +195,14 @@ sudo ./NovaUnlock-v1.32-linux.bin
 Run this once after installing, so NovaUnlock can recognise you:
 ```bash
 # Native packages
-python3 /opt/novaunlock/scripts/enroll_gui.py
+python3 /opt/novaunlock/scripts/enroll_gui.pyc
 
 # Universal .bin install
-~/NovaUnlock/.venv/bin/python3 ~/NovaUnlock/nova_unlock/ui/setup_flow.py --mode enroll
+~/NovaUnlock/.venv/bin/python3 ~/NovaUnlock/nova_unlock/ui/setup_flow.pyc --mode enroll
 ```
+> 📝 The installer compiles the shipped `.py` source to `.pyc` and removes the `.py`
+> files, so invoke the **`.pyc`** binaries (e.g. `enroll_gui.pyc`, not `enroll_gui.py`).
+
 A GUI wizard opens and captures your face from the webcam at multiple angles.
 
 ### 🔓 Try it
@@ -226,10 +229,10 @@ After installing the native package:
 
 ```bash
 # 1. Enroll your face (GUI wizard with multi-angle capture)
-python3 /opt/novaunlock/scripts/enroll_gui.py
+python3 /opt/novaunlock/scripts/enroll_gui.pyc
 
 # 2. Test the Face ID animation (demo mode)
-python3 /opt/novaunlock/nova_unlock/ui/face_id_screen.py --demo
+python3 /opt/novaunlock/nova_unlock/ui/face_id_screen.pyc --demo
 
 # 3. Lock your screen and authenticate with your face!
 xflock4                    # XFCE
