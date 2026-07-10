@@ -143,83 +143,103 @@ Automatic fallback to password authentication when:
 
 ## 🚀 Installation
 
-Pick the package that matches your platform. Every asset is on the
+All files are on the
 [GitHub Releases · v1.32](https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v1.32) page.
+Pick the file that matches your OS. **No source code is shipped** — every package contains only
+compiled binaries.
 
 | Platform | File | Install with |
 |---|---|---|
 | Ubuntu / Debian / Kali / Mint / Pop!_OS | `NovaUnlock-v1.32-Debian.deb` | `apt` |
 | Fedora / RHEL / openSUSE | `NovaUnlock-v1.32-Fedora.rpm` | `dnf` |
 | Arch / Manjaro | `NovaUnlock-v1.32-Arch.pkg.tar.zst` | `pacman` |
-| Any Linux (universal) | `NovaUnlock-v1.32-linux.bin` | self-extracting installer |
-| Windows 10 / 11 | `NovaUnlock-v1.32-Windows.zip` | `install.bat` |
+| Any Linux (universal one-file) | `nova_unlock_installer_v5.4` | run as root |
+| Windows 10 / 11 | `nova_unlock_windows_v5.4.zip` | `install.bat` |
 
 ### 🐧 Debian / Ubuntu / Kali / Mint / Pop!_OS — `.deb`
 ```bash
+# 1. Refresh your package lists (good habit before installing anything)
 sudo apt update
+
+# 2. Install the downloaded .deb. The "./" means "this local file", not a repo package.
 sudo apt install ./NovaUnlock-v1.32-Debian.deb
 ```
 
 ### 🔴 Fedora / RHEL / openSUSE — `.rpm`
 ```bash
+# Install the .rpm. Use "dnf" on Fedora/RHEL; on openSUSE swap "dnf" for "zypper".
 sudo dnf install ./NovaUnlock-v1.32-Fedora.rpm
 ```
 
 ### 🟠 Arch / Manjaro — `.pkg.tar.zst`
 ```bash
+# "-U" installs from a local package file (instead of downloading from the online repos)
 sudo pacman -U NovaUnlock-v1.32-Arch.pkg.tar.zst
 ```
 
-### ⚙️ Any Linux — `.bin` (universal)
-A self-contained installer — run it with `sudo` and it extracts to `~/NovaUnlock`,
-then performs the full system integration automatically.
+### ⚙️ Any Linux — `nova_unlock_installer_v5.4` (universal one-file)
+One self-contained installer for every major distro (Ubuntu/Debian/Kali/Fedora/Arch/openSUSE).
+You don't need Python or pip — it bundles everything it needs.
 ```bash
-chmod +x NovaUnlock-v1.32-linux.bin
-sudo ./NovaUnlock-v1.32-linux.bin
+# 1. Make the downloaded file executable (Linux blocks running downloaded files by default)
+chmod +x nova_unlock_installer_v5.4
+
+# 2. Run it as root so it can install to /opt and wire up PAM
+sudo ./nova_unlock_installer_v5.4
 ```
 
-> 📦 **What gets installed:** the native packages (`.deb` / `.rpm` / `.pkg.tar.zst`) install to
-> `/opt/novaunlock`, compile the shipped bytecode for your Python (3.11–3.13), wire **PAM** for
-> your desktop (login + lock screen, optional `sudo`), start the 30-day trial, and enable the guard
-> service. The universal `.bin` installs to `~/NovaUnlock` with the same integration.
+> 📦 **What gets installed (all Linux methods):** files land in `/opt/novaunlock`, the shipped
+> bytecode is compiled for *your* Python (3.11–3.13), **PAM** is wired for your desktop
+> (login + lock screen, optional `sudo`), the AI libraries (dlib / face_recognition) are
+> pip-installed best-effort, the 30-day trial starts, and the guard service is enabled.
+> If a library can't auto-install, **your password still works** as a fallback.
 
-### 🪟 Windows 10 / 11 — `.zip`
-1. Download `NovaUnlock-v1.32-Windows.zip` and extract it.
-2. Right-click **`install.bat`** → **Run as Administrator**.
-3. Follow the on-screen steps (Python, VC++ runtime, dlib, face_recognition, Credential Provider, service).
-4. Reboot and enroll your face from the lock screen.
+### 🪟 Windows 10 / 11 — `nova_unlock_windows_v5.4.zip` (plain steps)
+
+In simple words: you download a zip, run **one file as Administrator**, and NovaUnlock adds a
+**face-unlock button to your normal Windows login screen**. Your password always stays as a backup.
+
+1. **Download** `nova_unlock_windows_v5.4.zip` from the releases page and unzip it anywhere
+   (your Desktop is fine).
+2. Open the unzipped folder. **Right-click `install.bat` → choose "Run as administrator".**
+   This registers NovaUnlock's Credential Provider with Windows and starts its background service.
+3. If Windows asks to install **Python** or the **Visual C++ runtime**, say yes — they're required.
+4. **Restart** your PC so Windows loads the new login provider.
+5. On the lock screen you'll now see a NovaUnlock face-unlock tile. Click it and sit in front of
+   your camera to **enroll** (register) your face the first time.
+6. After that, just look at the camera on the login screen and you're in — no typing needed.
+
+> 💡 An older build, `NovaUnlock-v1.32-windows.zip`, is also on the release page if you need it.
+> Both zips are source-stripped (no `.py` files inside).
 
 ---
 
-### 👤 Enroll your face
-Run this once after installing, so NovaUnlock can recognise you:
+### 👤 Enroll your face (Linux)
+Run this once after installing so NovaUnlock knows what you look like:
 ```bash
-# Native packages
+# Open the enrollment wizard — it captures your face from the webcam at several angles
 python3 /opt/novaunlock/scripts/enroll_gui.pyc
-
-# Universal .bin install
-~/NovaUnlock/.venv/bin/python3 ~/NovaUnlock/nova_unlock/ui/setup_flow.pyc --mode enroll
 ```
-> 📝 The installer compiles the shipped `.py` source to `.pyc` and removes the `.py`
-> files, so invoke the **`.pyc`** binaries (e.g. `enroll_gui.pyc`, not `enroll_gui.py`).
+> 📝 The installer compiles the shipped `.py` source into `.pyc` and deletes the `.py` files,
+> so always run the **`.pyc`** binary (e.g. `enroll_gui.pyc`, not `enroll_gui.py`).
 
 A GUI wizard opens and captures your face from the webcam at multiple angles.
 
-### 🔓 Try it
+### 🔓 Try it (Linux)
 Lock your screen, then authenticate with your face:
 ```bash
-xflock4                # XFCE
-loginctl lock-session  # GNOME / systemd
+xflock4                 # XFCE
+loginctl lock-session   # GNOME / systemd
 ```
 If face recognition fails 3× (or the camera is unavailable), NovaUnlock falls back to your password.
 
 ### 🗑️ Uninstall
 ```bash
-sudo apt remove novaunlock          # Debian / Ubuntu / Kali
-sudo dnf remove novaunlock          # Fedora / RHEL
-sudo pacman -R novaunlock           # Arch
-sudo bash ~/NovaUnlock/uninstall.sh # universal .bin
+sudo apt remove novaunlock            # Debian / Ubuntu / Kali
+sudo dnf remove novaunlock            # Fedora / RHEL
+sudo pacman -R novaunlock             # Arch
 ```
+On Windows, remove it from **Settings → Apps → NovaUnlock** (or the uninstall entry shipped in the zip).
 
 ---
 
