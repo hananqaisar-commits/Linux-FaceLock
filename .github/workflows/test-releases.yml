@@ -1,0 +1,187 @@
+name: Test & Publish Releases
+
+# Validates every NovaUnlock v1.32 package on the appropriate platform, then
+# flips the GitHub release to published once all five test jobs are green.
+#
+# Triggers:
+#   - manual "Run workflow" button (workflow_dispatch)
+#   - push that touches this workflow file only (so committing it kicks CI)
+#
+# Test inputs are the pre-built assets uploaded to the v1.32 release, which is
+# why the publish job can only go green after all five packages are present on
+# that release.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-releases.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-releases-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v1.32
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Debian / Ubuntu
+  # ---------------------------------------------------------------------------
+  test-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Debian package
+        run: |
+          mkdir -p artifacts
+          gh release download "$RELEASE_TAG" \
+            --pattern 'NovaUnlock-v1.32-Debian.deb' --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Debian package
+        run: |
+          DEB=$(ls artifacts/*.deb)
+          echo "==> metadata"
+          dpkg-deb -I "$DEB" | head -n 8
+          dpkg-deb -f "$DEB" Package Version Architecture
+          echo "==> extract"
+          rm -rf extract && mkdir -p extract
+          dpkg-deb -x "$DEB" extract
+          test -f extract/opt/novaunlock/nova_pkg_postinstall.sh \
+            || { echo "missing postinstall script"; exit 1; }
+          test -d extract/opt/novaunlock/nova_unlock \
+            || { echo "missing nova_unlock tree"; exit 1; }
+          echo "DEB OK ($(find extract -type f | wc -l) files)"
+
+  # ---------------------------------------------------------------------------
+  # Fedora / RHEL  — run inside a real Fedora container so rpm2cpio handles the
+  # zstd-compressed payload (stock ubuntu-latest rpm2cpio predates zstd support).
+  # ---------------------------------------------------------------------------
+  test-rpm:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install dependencies
+        run: dnf install -y rpm cpio file binutils gh
+      - name: Download RPM
+        run: |
+          mkdir -p artifacts
+          gh release download "$RELEASE_TAG" \
+            --pattern 'NovaUnlock-v1.32-Fedora.rpm' --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify RPM
+        run: |
+          RPM=$(ls artifacts/*.rpm)
+          echo "==> header"
+          rpm -qpi "$RPM" | head -n 6
+          echo "==> extract payload (zstd)"
+          rm -rf extract && mkdir -p extract
+          rpm2cpio "$RPM" | (cd extract && cpio -idmv)
+          test -f extract/opt/novaunlock/nova_pkg_postinstall.sh \
+            || { echo "missing postinstall script"; exit 1; }
+          test -d extract/opt/novaunlock/nova_unlock \
+            || { echo "missing nova_unlock tree"; exit 1; }
+          echo "RPM OK ($(find extract -type f | wc -l) files)"
+
+  # ---------------------------------------------------------------------------
+  # Arch Linux
+  # ---------------------------------------------------------------------------
+  test-arch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install zstd
+        run: sudo apt-get update && sudo apt-get install -y zstd
+      - name: Download Arch package
+        run: |
+          mkdir -p artifacts
+          gh release download "$RELEASE_TAG" \
+            --pattern 'NovaUnlock-v1.32-Arch.pkg.tar.zst' --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Arch package
+        run: |
+          PKG=$(ls artifacts/*.pkg.tar.zst)
+          echo "==> .PKGINFO"
+          tar --zstd -xf "$PKG" -C /tmp .PKGINFO 2>/dev/null || true
+          tar --zstd -tf "$PKG" | grep -q '.PKGINFO' || { echo "no .PKGINFO"; exit 1; }
+          echo "==> extract"
+          rm -rf extract && mkdir -p extract
+          tar --zstd -xf "$PKG" -C extract
+          test -f extract/opt/novaunlock/nova_pkg_postinstall.sh \
+            || { echo "missing postinstall script"; exit 1; }
+          test -f extract/.PKGINFO \
+            || { echo "missing .PKGINFO"; exit 1; }
+          echo "ARCH OK ($(find extract -type f | wc -l) files)"
+
+  # ---------------------------------------------------------------------------
+  # Universal Linux binary
+  # ---------------------------------------------------------------------------
+  test-bin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Linux binary
+        run: |
+          mkdir -p artifacts
+          gh release download "$RELEASE_TAG" \
+            --pattern 'NovaUnlock-v1.32-linux.bin' --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify ELF binary
+        run: |
+          BIN=$(ls artifacts/*.bin)
+          file "$BIN" | grep -q 'ELF' || { echo "not an ELF"; exit 1; }
+          head -c 4 "$BIN" | xxd | grep -qi '7f45 4c46' || { echo "bad magic"; exit 1; }
+          chmod +x "$BIN"
+          "$BIN" --help 2>&1 | head -n 3 || true
+          echo "BIN OK ($(stat -c %s "$BIN") bytes)"
+
+  # ---------------------------------------------------------------------------
+  # Windows
+  # ---------------------------------------------------------------------------
+  test-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Windows zip
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          gh release download "$RELEASE_TAG" \
+            --pattern 'NovaUnlock-v1.32-Windows.zip' --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Windows zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem artifacts -Filter *.zip | Select-Object -First 1
+          if (-not $zip) { Write-Error "no windows zip downloaded"; exit 1 }
+          Expand-Archive -Path $zip.FullName -DestinationPath extract -Force
+          $count = (Get-ChildItem extract -Recurse -File).Count
+          Write-Host "Extracted $count files"
+          if ($count -lt 1) { exit 1 }
+          Write-Host "WIN OK"
+
+  # ---------------------------------------------------------------------------
+  # Publish — only when all five test jobs pass.
+  # ---------------------------------------------------------------------------
+  publish:
+    needs: [test-deb, test-rpm, test-arch, test-bin, test-win]
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    permissions:
+      contents: write
+    steps:
+      - name: Ensure release is published
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false
+          echo "Release $RELEASE_TAG ensured published."
