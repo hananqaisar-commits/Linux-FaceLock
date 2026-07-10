@@ -183,5 +183,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false
           echo "Release $RELEASE_TAG ensured published."
