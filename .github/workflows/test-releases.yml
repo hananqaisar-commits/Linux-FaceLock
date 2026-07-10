@@ -38,7 +38,7 @@ jobs:
       - name: Download Debian package
         run: |
           mkdir -p artifacts
-          gh release download "$RELEASE_TAG" \
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'NovaUnlock-v1.32-Debian.deb' --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,7 +71,7 @@ jobs:
       - name: Download RPM
         run: |
           mkdir -p artifacts
-          gh release download "$RELEASE_TAG" \
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'NovaUnlock-v1.32-Fedora.rpm' --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,7 +101,7 @@ jobs:
       - name: Download Arch package
         run: |
           mkdir -p artifacts
-          gh release download "$RELEASE_TAG" \
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'NovaUnlock-v1.32-Arch.pkg.tar.zst' --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -130,7 +130,7 @@ jobs:
       - name: Download Linux binary
         run: |
           mkdir -p artifacts
-          gh release download "$RELEASE_TAG" \
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'NovaUnlock-v1.32-linux.bin' --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,8 +154,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          gh release download "$RELEASE_TAG" \
-            --pattern 'NovaUnlock-v1.32-Windows.zip' --dir artifacts
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'NovaUnlock-v1.32-windows.zip' --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify Windows zip
