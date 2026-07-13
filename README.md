@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔐 NovaUnlock
+# NovaUnlock
 
 ### Next-Generation Face Authentication System for Linux & Windows
 
@@ -8,7 +8,7 @@ Biometric Face Unlock • Dynamic Island UI • PAM Integration • Privacy-Firs
 
 ---
 
-![Version](https://img.shields.io/badge/version-1.32-4a90d9?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.38-4a90d9?style=for-the-badge)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab?style=for-the-badge&logo=python&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-supported-27ae60?style=for-the-badge&logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white)
@@ -21,43 +21,43 @@ Biometric Face Unlock • Dynamic Island UI • PAM Integration • Privacy-Firs
 
 ---
 
-## 📸 Interface Preview
+## Interface Preview
 
 <div align="center">
 
-### 🔒 Face Scanning — Dynamic Island UI
+### Face Scanning — Dynamic Island UI
 
 <img src="assets/facelock_scanning.png" width="60%" alt="NovaUnlock — FaceLock Scanning State" />
 
-> *iOS-inspired Dynamic Island with lock icon and Face ID scanner. The pill expands with a spring animation and begins biometric scanning.*
+> iOS-inspired Dynamic Island with lock icon and Face ID scanner. The pill expands with a spring animation and begins biometric scanning.
 
 ---
 
-### 🟢 Authentication Success — 3D Wireframe Sphere
+### Authentication Success — 3D Wireframe Sphere
 
 <img src="assets/facelock_success.png" width="60%" alt="NovaUnlock — Face Match Success" />
 
-> *On successful face match: lock icon animates to unlocked (green glow), and an authentic iOS-style 3D wireframe sphere rotates with depth-sorted perspective rendering.*
+> On successful face match: lock icon animates to unlocked (green glow), and an authentic iOS-style 3D wireframe sphere rotates with depth-sorted perspective rendering.
 
 ---
 
-### 👋 Welcome Greeting — Instant Hello Overlay
+### Welcome Greeting — Instant Hello Overlay
 
 <img src="assets/hello_welcome.png" width="60%" alt="NovaUnlock — Hello Welcome Screen" />
 
-> *After successful unlock, an elegant full-screen greeting overlay appears instantly — "hello, {Username}" — with a subtle gradient accent line.*
+> After successful unlock, an elegant full-screen greeting overlay appears instantly — "hello, {Username}" — with a subtle gradient accent line.
 
 </div>
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
 **NovaUnlock** is a commercial, closed-source biometric face authentication system that replaces traditional password login with real-time facial recognition. It integrates directly with **Linux PAM** and **Windows Credential Provider** for system-level biometric authentication.
 
 Every aspect of the system is designed for **local processing** — no cloud APIs, no telemetry, no external dependencies. Your biometric data never leaves your device.
 
-> 💡 **Trial:** NovaUnlock ships with a **30-day free trial** — full functionality, no prompts. After the trial, face unlock still works, but a one-time paid license is required to remove the upgrade reminder. See [Trial & License](#-trial--license).
+> **Trial:** NovaUnlock ships with a **30-day free trial** — full functionality, no prompts. After the trial, face unlock still works, but a one-time paid license is required to remove the upgrade reminder. See [Trial & License](#trial--license).
 
 ### Why NovaUnlock?
 
@@ -71,48 +71,48 @@ Every aspect of the system is designed for **local processing** — no cloud API
 
 ---
 
-## 🎯 Core Features
+## Core Features
 
-### 🔓 Biometric Face Authentication
+### Biometric Face Authentication
 Real-time face recognition via webcam with configurable matching thresholds. Supports multiple face encodings per user for improved accuracy across lighting conditions.
 
-### 🎨 Dynamic Island UI
+### Dynamic Island UI
 An iOS-inspired animated interface built with PyQt5 featuring:
-- **Spring-physics pill animation** with smooth expand/collapse
-- **3D wireframe sphere** with perspective projection and depth-sorted rendering
-- **Animated lock icon** that transitions from locked → unlocked with green glow
-- **Face ID scanner icon** with natural eye-blink animation
-- **Shake rejection effect** with spring-damped horizontal oscillation
-- **Sound design** — procedurally generated pluck, bell, and whoosh audio cues
+- Spring-physics pill animation with smooth expand/collapse
+- 3D wireframe sphere with perspective projection and depth-sorted rendering
+- Animated lock icon that transitions from locked → unlocked with green glow
+- Face ID scanner icon with natural eye-blink animation
+- Shake rejection effect with spring-damped horizontal oscillation
+- Sound design — procedurally generated pluck, bell, and whoosh audio cues
 
-### 👋 Instant Welcome Overlay
+### Instant Welcome Overlay
 After successful authentication, a full-screen greeting overlay displays instantly via Unix socket IPC — pre-warmed during the scan phase for zero-latency display.
 
-### 🧩 PAM Integration (Linux)
+### PAM Integration (Linux)
 Seamless integration with Linux **Pluggable Authentication Modules** for:
 - Login screen authentication
 - Lock screen unlock
 - `sudo` elevation (optional)
 
-### 🪟 Windows Credential Provider
+### Windows Credential Provider
 Native Windows 10/11 support via a compiled C++ Credential Provider DLL that interfaces with LSA Secrets for secure password handling.
 
-### 🔴 Anti-Spoof Liveness Detection
-- **Adaptive EAR calibration** — learns your eye ratio in 30 frames
+### Anti-Spoof Liveness Detection
+- Adaptive EAR calibration — learns your eye ratio in 30 frames
 - dlib 68-point landmarks with 5-strategy face detection fallback
 - MediaPipe Tasks / Legacy / OpenCV Haar cascade chain
 - Rejects: printed photos, phone screens, static masks
 
-### 💾 100% Local Processing
+### 100% Local Processing
 - No cloud APIs or external network calls
 - No telemetry or tracking
 - All face encoding data stored on local filesystem
 - User-owned biometric data
 
-### 👥 Multi-User Support
+### Multi-User Support
 Separate face profiles per Linux/Windows user with independent encoding databases.
 
-### 🔑 Secure Password Fallback
+### Secure Password Fallback
 Automatic fallback to password authentication when:
 - Face recognition fails after 3 attempts
 - Camera is unavailable
@@ -120,86 +120,132 @@ Automatic fallback to password authentication when:
 
 ---
 
-## 🖥️ Platform Support
+## Platform Support
 
 ### Linux
 | Distribution | Package | Status |
 |---|---|---|
-| Ubuntu 22.04+ | `.deb` | ✅ Supported |
-| Debian 12+ | `.deb` | ✅ Supported |
-| Kali Linux | `.deb` | ✅ Supported |
-| Linux Mint / Pop!_OS | `.deb` | ✅ Supported |
-| Fedora / RHEL / openSUSE | `.rpm` | ✅ Supported |
-| Arch / Manjaro | `.pkg.tar.zst` | ✅ Supported |
-| KDE Plasma | `.deb` / `.rpm` | ⚠️ Experimental |
+| Ubuntu 22.04+ | `.deb` | Supported |
+| Debian 12+ | `.deb` | Supported |
+| Kali Linux | `.deb` | Supported |
+| Linux Mint / Pop!_OS | `.deb` | Supported |
+| Fedora / RHEL / openSUSE | `.rpm` | Supported |
+| Arch / Manjaro | `.pkg.tar.zst` | Supported |
+| KDE Plasma | `.deb` / `.rpm` | Experimental |
 
 ### Windows
 | Version | Status |
 |---|---|
-| Windows 10 (21H2+) | ✅ Supported |
-| Windows 11 | ✅ Supported |
+| Windows 10 (21H2+) | Supported |
+| Windows 11 | Supported |
 
 ---
 
-## 🚀 Installation
+## Download (every release)
 
-All files are on the
-[GitHub Releases · v1.32](https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v1.32) page.
-Pick the file that matches your OS. **No source code is shipped** — every package contains only
-compiled binaries.
+All releases live on the
+[GitHub Releases page](https://github.com/hananqaisar-commits/NovaUnlock/releases).
+The current release is **v1.38**. No source code is shipped — every package contains only compiled binaries.
+
+### Option A — Download from the web
+Open the release page, find the asset for your platform, and click to download:
+- **v1.38 (Latest):** https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v1.38
+
+### Option B — Download from the terminal
+Pick the asset that matches your OS, then run one of the commands below (swap the filename for your platform).
+
+```bash
+# ── Debian / Ubuntu / Kali / Mint / Pop!_OS ──
+gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Debian.deb"
+# or:
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Debian.deb
+
+# ── Fedora / RHEL / openSUSE ──
+gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Fedora.rpm"
+# or:
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Fedora.rpm
+
+# ── Arch / Manjaro ──
+gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Arch.pkg.tar.zst"
+# or:
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Arch.pkg.tar.zst
+
+# ── Any Linux (universal one-file installer) ──
+gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_installer_v1.38"
+# or:
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/nova_unlock_installer_v1.38
+
+# ── Windows 10 / 11 ──
+gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_windows_v1.38.zip"
+# or:
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/nova_unlock_windows_v1.38.zip
+```
+
+Each Linux asset is paired with a `*.sha256` file so you can verify integrity after download:
+
+```bash
+sha256sum -c NovaUnlock-v1.38-Debian.deb.sha256   # example for the .deb
+```
+
+---
+
+## Installation (every release)
 
 | Platform | File | Install with |
 |---|---|---|
-| Ubuntu / Debian / Kali / Mint / Pop!_OS | `NovaUnlock-v1.32-Debian.deb` | `apt` |
-| Fedora / RHEL / openSUSE | `NovaUnlock-v1.32-Fedora.rpm` | `dnf` |
-| Arch / Manjaro | `NovaUnlock-v1.32-Arch.pkg.tar.zst` | `pacman` |
-| Any Linux (universal one-file) | `nova_unlock_installer_v5.4` | run as root |
-| Windows 10 / 11 | `nova_unlock_windows_v5.4.zip` | `install.bat` |
+| Ubuntu / Debian / Kali / Mint / Pop!_OS | `NovaUnlock-v1.38-Debian.deb` | `apt` |
+| Fedora / RHEL / openSUSE | `NovaUnlock-v1.38-Fedora.rpm` | `dnf` |
+| Arch / Manjaro | `NovaUnlock-v1.38-Arch.pkg.tar.zst` | `pacman` |
+| Any Linux (universal one-file) | `nova_unlock_installer_v1.38` | run as root |
+| Windows 10 / 11 | `nova_unlock_windows_v1.38.zip` | `install.bat` |
 
-### 🐧 Debian / Ubuntu / Kali / Mint / Pop!_OS — `.deb`
+> **Checksums:** every Linux asset ships with a matching `*.sha256`. Verify before installing:
+> `sha256sum -c <file>.sha256`
+
+### Debian / Ubuntu / Kali / Mint / Pop!_OS — `.deb`
 ```bash
 # 1. Refresh your package lists (good habit before installing anything)
 sudo apt update
 
 # 2. Install the downloaded .deb. The "./" means "this local file", not a repo package.
-sudo apt install ./NovaUnlock-v1.32-Debian.deb
+sudo apt install ./NovaUnlock-v1.38-Debian.deb
 ```
 
-### 🔴 Fedora / RHEL / openSUSE — `.rpm`
+### Fedora / RHEL / openSUSE — `.rpm`
 ```bash
 # Install the .rpm. Use "dnf" on Fedora/RHEL; on openSUSE swap "dnf" for "zypper".
-sudo dnf install ./NovaUnlock-v1.32-Fedora.rpm
+sudo dnf install ./NovaUnlock-v1.38-Fedora.rpm
 ```
 
-### 🟠 Arch / Manjaro — `.pkg.tar.zst`
+### Arch / Manjaro — `.pkg.tar.zst`
 ```bash
 # "-U" installs from a local package file (instead of downloading from the online repos)
-sudo pacman -U NovaUnlock-v1.32-Arch.pkg.tar.zst
+sudo pacman -U NovaUnlock-v1.38-Arch.pkg.tar.zst
 ```
 
-### ⚙️ Any Linux — `nova_unlock_installer_v5.4` (universal one-file)
+### Any Linux — `nova_unlock_installer_v1.38` (universal one-file)
 One self-contained installer for every major distro (Ubuntu/Debian/Kali/Fedora/Arch/openSUSE).
 You don't need Python or pip — it bundles everything it needs.
 ```bash
 # 1. Make the downloaded file executable (Linux blocks running downloaded files by default)
-chmod +x nova_unlock_installer_v5.4
+chmod +x nova_unlock_installer_v1.38
 
 # 2. Run it as root so it can install to /opt and wire up PAM
-sudo ./nova_unlock_installer_v5.4
+sudo ./nova_unlock_installer_v1.38
 ```
 
-> 📦 **What gets installed (all Linux methods):** files land in `/opt/novaunlock`, the shipped
+> **What gets installed (all Linux methods):** files land in `/opt/novaunlock`, the shipped
 > bytecode is compiled for *your* Python (3.11–3.13), **PAM** is wired for your desktop
 > (login + lock screen, optional `sudo`), the AI libraries (dlib / face_recognition) are
-> pip-installed best-effort, the 30-day trial starts, and the guard service is enabled.
+> pip-installed best-effort from bundled offline wheels, the 30-day trial starts, and the guard service is enabled.
 > If a library can't auto-install, **your password still works** as a fallback.
 
-### 🪟 Windows 10 / 11 — `nova_unlock_windows_v5.4.zip` (plain steps)
+### Windows 10 / 11 — `nova_unlock_windows_v1.38.zip`
 
 In simple words: you download a zip, run **one file as Administrator**, and NovaUnlock adds a
 **face-unlock button to your normal Windows login screen**. Your password always stays as a backup.
 
-1. **Download** `nova_unlock_windows_v5.4.zip` from the releases page and unzip it anywhere
+1. **Download** `nova_unlock_windows_v1.38.zip` from the releases page and unzip it anywhere
    (your Desktop is fine).
 2. Open the unzipped folder. **Right-click `install.bat` → choose "Run as administrator".**
    This registers NovaUnlock's Credential Provider with Windows and starts its background service.
@@ -209,23 +255,24 @@ In simple words: you download a zip, run **one file as Administrator**, and Nova
    your camera to **enroll** (register) your face the first time.
 6. After that, just look at the camera on the login screen and you're in — no typing needed.
 
-> 💡 An older build, `NovaUnlock-v1.32-windows.zip`, is also on the release page if you need it.
-> Both zips are source-stripped (no `.py` files inside).
-
 ---
 
-### 👤 Enroll your face (Linux)
-Run this once after installing so NovaUnlock knows what you look like:
+### Enroll your face (Linux)
+Run this once after installing so NovaUnlock knows what you look like. Run it **as your normal user**
+(not `sudo`) and from a graphical session (so the camera + GUI can open):
 ```bash
-# Open the enrollment wizard — it captures your face from the webcam at several angles
-python3 /opt/novaunlock/scripts/enroll_gui.pyc
+# Opens the PyQt5 enrollment window (live preview + face box + progress ring).
+# Falls back to a text wizard automatically if no display/camera is available.
+python3 /opt/novaunlock/scripts/enroll_entry.pyc
 ```
-> 📝 The installer compiles the shipped `.py` source into `.pyc` and deletes the `.py` files,
-> so always run the **`.pyc`** binary (e.g. `enroll_gui.pyc`, not `enroll_gui.py`).
+> The installer compiles the shipped `.py` source into `.pyc` and deletes the `.py` files,
+> so always run the **`.pyc`** binary. `enroll_entry.pyc` is the robust launcher (GUI first, CLI
+> fallback). `enroll_gui.pyc` opens the GUI directly.
+>
+> Your profile is saved as `/var/lib/novaunlock/faces/<username>.npy`. Enroll **each** user you
+> want to unlock separately, while logged in as that user.
 
-A GUI wizard opens and captures your face from the webcam at multiple angles.
-
-### 🔓 Try it (Linux)
+### Try it (Linux)
 Lock your screen, then authenticate with your face:
 ```bash
 xflock4                 # XFCE
@@ -233,7 +280,7 @@ loginctl lock-session   # GNOME / systemd
 ```
 If face recognition fails 3× (or the camera is unavailable), NovaUnlock falls back to your password.
 
-### 🗑️ Uninstall
+### Uninstall
 ```bash
 sudo apt remove novaunlock            # Debian / Ubuntu / Kali
 sudo dnf remove novaunlock            # Fedora / RHEL
@@ -243,15 +290,15 @@ On Windows, remove it from **Settings → Apps → NovaUnlock** (or the uninstal
 
 ---
 
-## ⚡ Quick Start (Linux)
+## Quick Start (Linux)
 
 After installing the native package:
 
 ```bash
 # 1. Enroll your face (GUI wizard with multi-angle capture)
-python3 /opt/novaunlock/scripts/enroll_gui.pyc
+python3 /opt/novaunlock/scripts/enroll_entry.pyc
 
-# 2. Test the Face ID animation (demo mode)
+# 2. Test the Face ID animation (demo mode — SUCCESS → FAIL → SUCCESS)
 python3 /opt/novaunlock/nova_unlock/ui/face_id_screen.pyc --demo
 
 # 3. Lock your screen and authenticate with your face!
@@ -261,7 +308,129 @@ loginctl lock-session      # GNOME / systemd
 
 ---
 
-## 🧠 System Architecture
+## Debugging & Troubleshooting
+
+Everything NovaUnlock does is observable through logs and config files. This section tells you
+**where to look** and **what to check** for the most common problems.
+
+### Where the logs are
+
+| Log | What it shows |
+|---|---|
+| `/var/log/novaunlock/face_auth.log` | The lock-screen/guard daemon: camera open, face match result, unlock decision. **Start here.** |
+| `/var/log/novaunlock/pam_auth.log` | PAM auth events (pam_script hook firing on login/sudo). |
+| `/var/log/novaunlock/watcher.log` | The presence watcher (auto-lock when you walk away). |
+| `/tmp/nova_greeter_ui.log` | The greeter UI process (camera preview at the login screen). |
+| `/tmp/nova_unlock_greeter.log` | Greeter launcher stdout/stderr. |
+| `/tmp/nova_unlock_greeter_launcher.log` | Greeter launcher bootstrap. |
+
+Watch the live daemon log while you try to unlock:
+```bash
+sudo tail -f /var/log/novaunlock/face_auth.log
+```
+
+### Is the package actually installed?
+```bash
+# Native package
+dpkg -l novaunlock            # Debian/Ubuntu
+rpm -qi novaunlock            # Fedora
+pacman -Qi novaunlock         # Arch
+
+# Files present?
+ls -1 /opt/novaunlock
+ls -1 /opt/novaunlock/scripts | grep -E "enroll|face_unlock_daemon|face_login_greeter"
+```
+
+### Is my face enrolled?
+```bash
+ls -la /var/lib/novaunlock/faces
+cat /var/lib/novaunlock/faces/users_meta.json
+```
+You should see `<your-username>.npy`. If the folder is empty, run the enrollment step again
+(as your user, not root). To re-enroll from scratch:
+```bash
+rm -f /var/lib/novaunlock/faces/<username>.npy
+python3 /opt/novaunlock/scripts/enroll_entry.pyc
+```
+
+### Is PAM wired up?
+NovaUnlock hooks these PAM files (depending on desktop):
+- `/etc/pam.d/xfce4-screensaver`
+- `/etc/pam.d/gnome-screensaver`
+- `/etc/pam.d/gdm-password`
+- `/etc/pam.d/kde`
+
+Check that a `pam_script` / `pam_exec` line pointing at `/opt/novaunlock/...` is present:
+```bash
+grep -RniE "novaunlock|pam_script|pam_exec" /etc/pam.d/ | head
+```
+The actual script that runs is `pam_script_auth` under `/usr/share/libpam-script/`
+(or the bundled equivalent in `/opt/novaunlock`).
+
+### Is the greeter configured? (login-screen camera)
+For LightDM the config lives in:
+- `/etc/lightdm/lightdm.conf.d/50-nova-unlock.conf`
+- `/etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf`
+
+Verify they exist and reference the greeter:
+```bash
+cat /etc/lightdm/lightdm.conf.d/50-nova-unlock.conf
+```
+Changes here take effect after you **reboot** or restart the display manager.
+
+### Is the guard service running?
+```bash
+systemctl --user status nova-unlock-watcher.service
+systemctl --user enable --now nova-unlock-watcher.service
+```
+(The watcher is a **user** service, so check it as your user, not with `sudo`.)
+
+### Camera problems
+```bash
+# Is a camera visible to the system at all?
+ls -l /dev/video*
+# Is something else holding the camera? (only one app can use it)
+# Close Zoom/Cheese/OBS, then retry enrollment/unlock.
+```
+If enrollment prints `❌ No camera found` or the GUI never appears, the camera is missing or busy.
+The enrollment will automatically fall back to a text wizard if there is no display.
+
+### Enrollment opened as text/CLI instead of a GUI
+This happens when:
+- you ran it over SSH (no `DISPLAY`), or
+- the PyQt5 GUI could not start.
+Run it from a **local terminal inside your desktop session** (not SSH). Check `DISPLAY` is set:
+```bash
+echo "$DISPLAY"        # should be e.g. :0 or :1
+python3 /opt/novaunlock/scripts/enroll_gui.pyc   # GUI directly
+```
+
+### Face is not recognized / unlock fails
+1. Check `face_auth.log` — it records the match distance vs threshold.
+2. Re-enroll in **good, even lighting** (10 samples, look straight at the camera).
+3. Make sure you enrolled the **same user** you are logging in as.
+4. After 3 failures it falls back to your password by design — that is expected.
+
+### Unlock animation looks cut off / logs in too early
+Fixed in v1.38: the success animation (camera fade → sphere grow → lock open → hold → fade) now
+plays in full (~1.6s) **before** the desktop unlocks. If you still see an early cut-off, you are
+running an older build — upgrade to v1.38 and re-test with:
+```bash
+python3 /opt/novaunlock/nova_unlock/ui/face_id_screen.pyc --demo
+```
+
+### Still stuck?
+Collect these and include them in a support request:
+```bash
+echo "=== face_auth.log ==="; sudo tail -n 50 /var/log/novaunlock/face_auth.log
+echo "=== pam_auth.log ==="; sudo tail -n 20 /var/log/novaunlock/pam_auth.log
+echo "=== faces ==="; ls -la /var/lib/novaunlock/faces
+echo "=== version ==="; cat /opt/novaunlock/nova_unlock/__init__.py | grep __version__
+```
+
+---
+
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -301,7 +470,6 @@ loginctl lock-session      # GNOME / systemd
 ```
 
 ### Authentication Flow
-
 1. **Trigger** — User locks screen or initiates login
 2. **PAM Request** — System calls NovaUnlock authentication module
 3. **UI Launch** — Dynamic Island pill animates into view with spring physics
@@ -314,7 +482,7 @@ loginctl lock-session      # GNOME / systemd
 
 ---
 
-## 🔐 Security & Privacy
+## Security & Privacy
 
 | Component | Implementation |
 |---|---|
@@ -329,7 +497,7 @@ loginctl lock-session      # GNOME / systemd
 
 ---
 
-## 📋 System Requirements
+## System Requirements
 
 | Requirement | Minimum |
 |---|---|
@@ -341,7 +509,7 @@ loginctl lock-session      # GNOME / systemd
 
 ---
 
-## 🎟️ Trial & License
+## Trial & License
 
 NovaUnlock is **commercial software** distributed with a **30-day free trial**:
 
@@ -355,24 +523,29 @@ Your Hardware ID is shown inside the upgrade dialog and can be copied with one c
 
 ---
 
-## 🆕 Changelog
+## Changelog
 
-### v1.32 — Current Release
-- 🪟 Windows 10/11 Credential Provider support (refined installer)
-- 🐧 Native packages for Debian (`.deb`), Fedora (`.rpm`) and Arch (`.pkg.tar.zst`)
-- 🔴 Anti-spoof blink liveness detection (adaptive EAR)
-- 🟠 GTK theme auto-switch (dark/light)
-- 🟢 Auto-lock on face leave (10s timeout)
-- 🔐 30-day trial + paid license system with hardware-bound activation
+### v1.38 — Current Release
+- Smoother unlock animation: the success sequence (camera fade → sphere grow → lock open → hold → smooth fade) now plays in full (~1.6s) **before** the desktop unlocks. Previously login fired at ~0.45s and cut the animation off mid-play. Affects both Linux and Windows unlock UI.
+- Real PyQt5 enrollment GUI on Linux: enrollment now opens a genuine Qt window (live preview + green face box + progress ring). The old code used `cv2.imshow`, which silently fell back to a text-only CLI under the headless OpenCV build. CLI enrollment remains as a clean fallback when no camera/display is present.
+- Native packages for Debian (`.deb`), Fedora (`.rpm`) and Arch (`.pkg.tar.zst`), plus a universal one-file installer and the Windows zip. All Linux installers bundle offline ML wheels (~1 minute setup, no network).
+
+### v1.32
+- Windows 10/11 Credential Provider support (refined installer)
+- Native packages for Debian (`.deb`), Fedora (`.rpm`) and Arch (`.pkg.tar.zst`)
+- Anti-spoof blink liveness detection (adaptive EAR)
+- GTK theme auto-switch (dark/light)
+- Auto-lock on face leave (10s timeout)
+- 30-day trial + paid license system with hardware-bound activation
 
 ---
 
-## 💬 Support
+## Support
 
 NovaUnlock is a commercial product. For licensing, enterprise enquiries, or support:
 
-- 📧 **Email:** [hananqaisar316@gmail.com](mailto:hananqaisar316@gmail.com)
-- 🐙 **Source & Releases:** [github.com/hananqaisar-commits/NovaUnlock](https://github.com/hananqaisar-commits/NovaUnlock)
+- **Email:** [hananqaisar316@gmail.com](mailto:hananqaisar316@gmail.com)
+- **Source & Releases:** [github.com/hananqaisar-commits/NovaUnlock](https://github.com/hananqaisar-commits/NovaUnlock)
 
 *Secure your system with your face — not your password.*
 
