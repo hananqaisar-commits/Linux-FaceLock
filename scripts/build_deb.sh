@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 #
-# build_deb.sh — Build NovaUnlock-v1.32-Debian.deb
+# build_deb.sh — Build NovaUnlock-v${VERSION:-5.4}-Debian.deb
 # Pyc compiled with host python3.11 (matches Debian 12 / Kali 3.11).
 #
 set -euo pipefail
 
+VERSION="${VERSION:-2.012}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 WORK="$(mktemp -d)"
 ROOT="$WORK/root"
-OUT="$RELEASE/NovaUnlock-v1.32-Debian.deb"
+OUT="$RELEASE/NovaUnlock-v$VERSION-Debian.deb"
 
 PY_BIN="python3.11"
 PKG_ARCH="amd64"
@@ -54,13 +55,13 @@ DESK
 
 # 3) DEBIAN control + maintainer scripts
 mkdir -p "$ROOT/DEBIAN"
-cat > "$ROOT/DEBIAN/control" << CTRL
+cat > "$ROOT/DEBIAN/control" <<CTRL
 Package: novaunlock
-Version: 1.32
+Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: ${PKG_ARCH}
-Depends: python3 (>= 3.11), python3-pyqt5, python3-opencv, python3-numpy, python3-yaml, python3-xlib, libpam-runtime, libpam-script
+Depends: python3 (>= 3.11), python3-pip, python3-pyqt5, python3-opencv, python3-numpy, python3-yaml, python3-xlib, libpam-runtime, libpam-script
 Recommends: libqt5svg5, pulseaudio-utils, dbus
 Maintainer: Hanan Qaisar <hananqaisar316@gmail.com>
 Description: Next-generation face authentication for Linux
@@ -84,8 +85,8 @@ License: Proprietary
  license obtained from hananqaisar316@gmail.com.
 COPY
 
-cat > "$ROOT/usr/share/doc/novaunlock/changelog" << 'CHG'
-novaunlock (1.32) stable; urgency=medium
+cat > "$ROOT/usr/share/doc/novaunlock/changelog" <<CHG
+novaunlock (${VERSION}) stable; urgency=medium
 
   * Native Debian package bundling the closed-source pyc tree.
   * PAM integration, 30-day trial initialisation, guard service.

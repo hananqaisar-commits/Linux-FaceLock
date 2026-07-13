@@ -8,7 +8,7 @@ Biometric Face Unlock • Dynamic Island UI • PAM Integration • Privacy-Firs
 
 ---
 
-![Version](https://img.shields.io/badge/version-1.38-4a90d9?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-2.012-4a90d9?style=for-the-badge)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab?style=for-the-badge&logo=python&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-supported-27ae60?style=for-the-badge&logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white)
@@ -145,46 +145,46 @@ Automatic fallback to password authentication when:
 
 All releases live on the
 [GitHub Releases page](https://github.com/hananqaisar-commits/NovaUnlock/releases).
-The current release is **v1.38**. No source code is shipped — every package contains only compiled binaries.
+The current release is **v2.012**. No source code is shipped — every package contains only compiled binaries.
 
 ### Option A — Download from the web
 Open the release page, find the asset for your platform, and click to download:
-- **v1.38 (Latest):** https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v1.38
+- **v2.012 (Latest):** https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v2.012
 
 ### Option B — Download from the terminal
 Pick the asset that matches your OS, then run one of the commands below (swap the filename for your platform).
 
 ```bash
 # ── Debian / Ubuntu / Kali / Mint / Pop!_OS ──
-gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Debian.deb"
+gh release download v2.012 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v2.012-Debian.deb"
 # or:
-curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Debian.deb
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v2.012/NovaUnlock-v2.012-Debian.deb
 
 # ── Fedora / RHEL / openSUSE ──
-gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Fedora.rpm"
+gh release download v2.012 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v2.012-Fedora.rpm"
 # or:
-curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Fedora.rpm
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v2.012/NovaUnlock-v2.012-Fedora.rpm
 
 # ── Arch / Manjaro ──
-gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v1.38-Arch.pkg.tar.zst"
+gh release download v2.012 --repo hananqaisar-commits/NovaUnlock --pattern "NovaUnlock-v2.012-Arch.pkg.tar.zst"
 # or:
-curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/NovaUnlock-v1.38-Arch.pkg.tar.zst
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v2.012/NovaUnlock-v2.012-Arch.pkg.tar.zst
 
 # ── Any Linux (universal one-file installer) ──
-gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_installer_v1.38"
+gh release download v2.012 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_installer_v2.012"
 # or:
-curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/nova_unlock_installer_v1.38
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v2.012/nova_unlock_installer_v2.012
 
 # ── Windows 10 / 11 ──
-gh release download v1.38 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_windows_v1.38.zip"
+gh release download v2.012 --repo hananqaisar-commits/NovaUnlock --pattern "nova_unlock_windows_v2.012.zip"
 # or:
-curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v1.38/nova_unlock_windows_v1.38.zip
+curl -L -O https://github.com/hananqaisar-commits/NovaUnlock/releases/download/v2.012/nova_unlock_windows_v2.012.zip
 ```
 
 Each Linux asset is paired with a `*.sha256` file so you can verify integrity after download:
 
 ```bash
-sha256sum -c NovaUnlock-v1.38-Debian.deb.sha256   # example for the .deb
+sha256sum -c NovaUnlock-v2.012-Debian.deb.sha256   # example for the .deb
 ```
 
 ---
@@ -193,11 +193,11 @@ sha256sum -c NovaUnlock-v1.38-Debian.deb.sha256   # example for the .deb
 
 | Platform | File | Install with |
 |---|---|---|
-| Ubuntu / Debian / Kali / Mint / Pop!_OS | `NovaUnlock-v1.38-Debian.deb` | `apt` |
-| Fedora / RHEL / openSUSE | `NovaUnlock-v1.38-Fedora.rpm` | `dnf` |
-| Arch / Manjaro | `NovaUnlock-v1.38-Arch.pkg.tar.zst` | `pacman` |
-| Any Linux (universal one-file) | `nova_unlock_installer_v1.38` | run as root |
-| Windows 10 / 11 | `nova_unlock_windows_v1.38.zip` | `install.bat` |
+| Ubuntu / Debian / Kali / Mint / Pop!_OS | `NovaUnlock-v2.012-Debian.deb` | `apt` |
+| Fedora / RHEL / openSUSE | `NovaUnlock-v2.012-Fedora.rpm` | `dnf` |
+| Arch / Manjaro | `NovaUnlock-v2.012-Arch.pkg.tar.zst` | `pacman` |
+| Any Linux (universal one-file) | `nova_unlock_installer_v2.012` | run as root |
+| Windows 10 / 11 | `nova_unlock_windows_v2.012.zip` | `install.bat` |
 
 > **Checksums:** every Linux asset ships with a matching `*.sha256`. Verify before installing:
 > `sha256sum -c <file>.sha256`
@@ -208,30 +208,30 @@ sha256sum -c NovaUnlock-v1.38-Debian.deb.sha256   # example for the .deb
 sudo apt update
 
 # 2. Install the downloaded .deb. The "./" means "this local file", not a repo package.
-sudo apt install ./NovaUnlock-v1.38-Debian.deb
+sudo apt install ./NovaUnlock-v2.012-Debian.deb
 ```
 
 ### Fedora / RHEL / openSUSE — `.rpm`
 ```bash
 # Install the .rpm. Use "dnf" on Fedora/RHEL; on openSUSE swap "dnf" for "zypper".
-sudo dnf install ./NovaUnlock-v1.38-Fedora.rpm
+sudo dnf install ./NovaUnlock-v2.012-Fedora.rpm
 ```
 
 ### Arch / Manjaro — `.pkg.tar.zst`
 ```bash
 # "-U" installs from a local package file (instead of downloading from the online repos)
-sudo pacman -U NovaUnlock-v1.38-Arch.pkg.tar.zst
+sudo pacman -U NovaUnlock-v2.012-Arch.pkg.tar.zst
 ```
 
-### Any Linux — `nova_unlock_installer_v1.38` (universal one-file)
+### Any Linux — `nova_unlock_installer_v2.012` (universal one-file)
 One self-contained installer for every major distro (Ubuntu/Debian/Kali/Fedora/Arch/openSUSE).
 You don't need Python or pip — it bundles everything it needs.
 ```bash
 # 1. Make the downloaded file executable (Linux blocks running downloaded files by default)
-chmod +x nova_unlock_installer_v1.38
+chmod +x nova_unlock_installer_v2.012
 
 # 2. Run it as root so it can install to /opt and wire up PAM
-sudo ./nova_unlock_installer_v1.38
+sudo ./nova_unlock_installer_v2.012
 ```
 
 > **What gets installed (all Linux methods):** files land in `/opt/novaunlock`, the shipped
@@ -240,12 +240,12 @@ sudo ./nova_unlock_installer_v1.38
 > pip-installed best-effort from bundled offline wheels, the 30-day trial starts, and the guard service is enabled.
 > If a library can't auto-install, **your password still works** as a fallback.
 
-### Windows 10 / 11 — `nova_unlock_windows_v1.38.zip`
+### Windows 10 / 11 — `nova_unlock_windows_v2.012.zip`
 
 In simple words: you download a zip, run **one file as Administrator**, and NovaUnlock adds a
 **face-unlock button to your normal Windows login screen**. Your password always stays as a backup.
 
-1. **Download** `nova_unlock_windows_v1.38.zip` from the releases page and unzip it anywhere
+1. **Download** `nova_unlock_windows_v2.012.zip` from the releases page and unzip it anywhere
    (your Desktop is fine).
 2. Open the unzipped folder. **Right-click `install.bat` → choose "Run as administrator".**
    This registers NovaUnlock's Credential Provider with Windows and starts its background service.
@@ -525,10 +525,15 @@ Your Hardware ID is shown inside the upgrade dialog and can be copied with one c
 
 ## Changelog
 
-### v1.38 — Current Release
+### v2.012 — Current Release
 - Smoother unlock animation: the success sequence (camera fade → sphere grow → lock open → hold → smooth fade) now plays in full (~1.6s) **before** the desktop unlocks. Previously login fired at ~0.45s and cut the animation off mid-play. Affects both Linux and Windows unlock UI.
 - Real PyQt5 enrollment GUI on Linux: enrollment now opens a genuine Qt window (live preview + green face box + progress ring). The old code used `cv2.imshow`, which silently fell back to a text-only CLI under the headless OpenCV build. CLI enrollment remains as a clean fallback when no camera/display is present.
 - Native packages for Debian (`.deb`), Fedora (`.rpm`) and Arch (`.pkg.tar.zst`), plus a universal one-file installer and the Windows zip. All Linux installers bundle offline ML wheels (~1 minute setup, no network).
+- **Dynamic Island "Retry" after failed attempts:** when all 5 face attempts fail, the iOS-style pill now shows a circular retry icon instead of the face. Hovering gives a smooth professional glow; clicking plays a press animation and restarts the scan.
+- **Smoother animation:** removed the deprecated `HighQualityAntialiasing` render hint (a major frame-drop source on Qt5/X11/XWayland/Windows) and stopped needless idle repaints, so the Face ID / Dynamic Island UI no longer stutters.
+- **Attempts capped at 5** across the shipped bundle (`nova_bundle` config + data config) so installed systems enforce exactly 5 attempts before retry.
+- **Windows release made easy:** the packaged zip now bundles offline Windows wheels for every dependency except `dlib` (no official Windows wheel exists upstream, so it compiles from source with CMake + VS Build Tools auto-installed). `install.bat` installs the bundled wheels with no network, then builds `dlib` — mirroring the Linux offline flow.
+- **Wayland support (Ubuntu & friends):** the installer no longer force-disables Wayland. NovaUnlock runs on Wayland via XWayland (Qt uses the `xcb` platform plugin), so your Wayland session stays enabled and face unlock works on the lock screen.
 
 ### v1.32
 - Windows 10/11 Credential Provider support (refined installer)

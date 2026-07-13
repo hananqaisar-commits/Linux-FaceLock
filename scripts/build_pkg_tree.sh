@@ -56,6 +56,20 @@ fi
 # 5) Ship the post-install integration script (generates helpers + PAM + trial + service)
 cp "$REPO_ROOT/scripts/nova_pkg_postinstall.sh" "$STAGE_NOVA/nova_pkg_postinstall.sh"
 
+# 5a) Bundle the prebuilt offline wheels (dlib + face_recognition + face_recognition_models
+#     + opencv/PyQt5/numpy/python-xlib/PyYAML/setuptools) so post-install can install the ML
+#     stack with `pip --no-index` and NO network access. Without this the package ships no
+#     wheels, post-install finds WHEELS_DIR missing, and dlib/face_recognition never install
+#     (the offline import failure seen in the v1.32 Docker test).
+if [ -d "$REPO_ROOT/wheels" ]; then
+    echo "==> Staging offline wheels -> $STAGE_NOVA/wheels"
+    mkdir -p "$STAGE_NOVA/wheels"
+    cp -a "$REPO_ROOT/wheels/." "$STAGE_NOVA/wheels/"
+    echo "    wheel dirs: $(ls -1 "$STAGE_NOVA/wheels" 2>/dev/null | tr '\n' ' ')"
+else
+    echo "!! WARNING: $REPO_ROOT/wheels MISSING — native post-install cannot install ML deps offline" >&2
+fi
+
 # 5b) Normalise permissions (Debian policy: files 0644, dirs 0755)
 find "$STAGE_NOVA" -type d -exec chmod 0755 {} +
 find "$STAGE_NOVA" -type f -exec chmod 0644 {} +

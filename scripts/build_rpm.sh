@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
-# build_rpm.sh — Build NovaUnlock-v1.32-Fedora.rpm
+# build_rpm.sh — Build NovaUnlock-v${VERSION:-5.4}-Fedora.rpm
 # Pyc compiled with CPython 3.12 (matches Fedora 39). Falls back to shipping
 # .py + %post compile if a 3.12 interpreter is unavailable.
 #
 set -euo pipefail
 
+VERSION="${VERSION:-2.012}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
-OUT="$RELEASE/NovaUnlock-v1.32-Fedora.rpm"
+OUT="$RELEASE/NovaUnlock-v$VERSION-Fedora.rpm"
 
 PY312="/home/hanan/py312/bin/python3.12"
 FALLBACK=0
@@ -78,7 +79,7 @@ tar -C "$STAGE" -czf "$TOPDIR/SOURCES/novaunlock-tree.tar.gz" .
 # Spec
 cat > "$TOPDIR/SPECS/novaunlock.spec" << SPEC
 Name:           novaunlock
-Version:        1.32
+Version:        ${VERSION}
 Release:        1%{?dist}
 Summary:        Next-generation face authentication for Linux
 License:        Proprietary
@@ -123,13 +124,13 @@ rm -rf /var/log/novaunlock
 /etc/xdg/autostart/nova-unlock-watcher.desktop
 
 %changelog
-* Fri Jul 10 2026 Hanan Qaisar <hananqaisar316@gmail.com> - 1.32-1
+* Fri Jul 10 2026 Hanan Qaisar <hananqaisar316@gmail.com> - ${VERSION}-1
 - Native Fedora package with closed-source pyc tree, PAM, trial, guard service.
 SPEC
 
 echo "==> rpmbuild"
 rpmbuild --define "_topdir $TOPDIR" --define "_rpmdbpath /tmp/nova_rpmdb" -bb "$TOPDIR/SPECS/novaunlock.spec" 2>&1 | tail -15
-RPM=$(find "$TOPDIR/RPMS" -name 'novaunlock-1.32-1.*.rpm' | head -1)
+RPM=$(find "$TOPDIR/RPMS" -name "novaunlock-${VERSION}-1.*.rpm" | head -1)
 if [ -n "$RPM" ]; then
     mkdir -p "$RELEASE"
     cp "$RPM" "$OUT"

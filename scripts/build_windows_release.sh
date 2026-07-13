@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-5.4}"
+VERSION="${VERSION:-2.012}"
 SOURCE_DIR="${WINDOWS_SOURCE_DIR:-$ROOT_DIR/build/win_release}"
 RELEASE_DIR="$ROOT_DIR/build/release/windows-v$VERSION"
 OUTPUT_ZIP="$ROOT_DIR/dist/nova_unlock_windows_v$VERSION.zip"
@@ -20,6 +20,18 @@ fi
 
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR" "$ROOT_DIR/dist"
+
+# ── Step 1b: Bundle offline Windows wheels (if vendored) ──
+# Mirrors the Linux release: most deps install with NO network. NOTE: dlib has
+# no official Windows wheel anywhere, so it is intentionally excluded and is
+# compiled from source by install.bat (CMake + VS Build Tools are auto-installed).
+if [ -d "$ROOT_DIR/wheels/win_amd64" ]; then
+    echo "Bundling offline Windows wheels -> $RELEASE_DIR/wheels"
+    mkdir -p "$RELEASE_DIR/wheels"
+    cp -a "$ROOT_DIR/wheels/win_amd64/." "$RELEASE_DIR/wheels/"
+else
+    echo "No wheels/win_amd64 found — Windows install will fetch deps online."
+fi
 
 # ── Step 1: Copy non-code assets (DLLs, .reg, etc.) from win_release ──
 # Skips ALL source and bytecode: we will regenerate .pyc from scratch.
@@ -383,6 +395,30 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 %PY% -m pip install --upgrade --prefer-binary cmake >> "%LOG%" 2>&1
 if errorlevel 1 echo [WARN] pip CMake package install failed. Continuing to main dependencies.
+
+REM ── Offline-first: install bundled Windows wheels (no network needed) ──
+set "WHEELDIR=%SRC%wheels"
+if exist "%WHEELDIR%\*.whl" (
+    echo [INFO] Installing bundled offline wheels from %WHEELDIR% ...
+    %PY% -m pip install --no-index --find-links "%WHEELDIR%" "%WHEELDIR%\*.whl" >> "%LOG%" 2>&1
+    if errorlevel 1 echo [WARN] Offline wheel install reported issues; will retry online below.
+    REM dlib has no official Windows wheel — compile it from source (needs CMake + MSVC).
+    echo [INFO] Building dlib 20.0.1 from source (this can take several minutes)...
+    %PY% -m pip install dlib==20.0.1 >> "%LOG%" 2>&1
+    if errorlevel 1 (
+        echo [WARN] dlib source build failed — installing CMake + VS Build Tools, then retrying.
+        call :install_build_dependencies
+        %PY% -m pip install dlib==20.0.1 >> "%LOG%" 2>&1
+        if errorlevel 1 (
+            echo [ERROR] dlib still failed to build. Ensure "Desktop development with C++"
+            echo [ERROR] (MSVC + Windows SDK) is installed, then rerun this installer.
+            exit /b 1
+        )
+    )
+    exit /b 0
+)
+
+REM ── Fallback: no bundled wheels — install everything online ──
 if exist "%SRC%requirements.txt" (
     %PY% -m pip install --upgrade --prefer-binary -r "%SRC%requirements.txt" >> "%LOG%" 2>&1
     if errorlevel 1 exit /b 1

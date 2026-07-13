@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════
-#  NovaUnlock Installer v1.32
+#  NovaUnlock Installer v2.012
 #  Distros:  Debian / Ubuntu / Kali | Fedora / RHEL | Arch | openSUSE
 #  Desktops: XFCE | GNOME | KDE | MATE | Cinnamon
 #  DMs:      LightDM | GDM | SDDM
@@ -85,7 +85,7 @@ PY
 
 echo
 echo -e "${BOLD}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║     NovaUnlock — Installer v1.32             ║${NC}"
+echo -e "${BOLD}║     NovaUnlock — Installer v2.012             ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
 
@@ -172,62 +172,21 @@ info "Session type    : ${SESSION_TYPE:-unknown}"
 
 if [ "$SESSION_TYPE" = "wayland" ]; then
     info ""
-    warn "⚠️  WAYLAND SESSION DETECTED"
-    # NOTE: This Wayland fix does NOT touch PAM — only GDM/SDDM display config
-    info "NovaUnlock requires X11 — applying automatic fix..."
+    info "ℹ️  WAYLAND SESSION DETECTED"
+    info "NovaUnlock runs on Wayland via XWayland (the Qt GUI uses the xcb platform"
+    info "plugin inside XWayland), so your Wayland session is left ENABLED — no"
+    info "display-manager changes are required."
 
-    # Backup and disable Wayland in GDM
-    GDM_CONF=""
-    [ -f /etc/gdm3/custom.conf ] && GDM_CONF="/etc/gdm3/custom.conf"
-    [ -f /etc/gdm/custom.conf ]  && GDM_CONF="/etc/gdm/custom.conf"
+    # Ensure XWayland is present so the X11/Qt lock-screen GUI and camera preview
+    # get a DISPLAY under a Wayland session.
+    case "$PKG_MGR" in
+        apt)    apt-get install -y xwayland >>"$INSTALL_LOG" 2>&1 || true ;;
+        dnf|yum) $PKG_MGR install -y xorg-x11-server-Xwayland >>"$INSTALL_LOG" 2>&1 || true ;;
+        pacman) pacman -S --noconfirm xorg-xwayland >>"$INSTALL_LOG" 2>&1 || true ;;
+        zypper) zypper install -y xwayland >>"$INSTALL_LOG" 2>&1 || true ;;
+    esac
 
-    if [ -n "$GDM_CONF" ]; then
-        # Backup original
-        cp "$GDM_CONF" "${GDM_CONF}.nova_backup_$(date +%s)" 2>/dev/null
-
-        # Method 1: Uncomment existing WaylandEnable line
-        if grep -q "^#WaylandEnable=false" "$GDM_CONF"; then
-            sed -i 's/^#WaylandEnable=false/WaylandEnable=false/' "$GDM_CONF"
-            ok "Wayland disabled (uncommented existing line)"
-        # Method 2: Update existing true to false
-        elif grep -q "^WaylandEnable=true" "$GDM_CONF"; then
-            sed -i 's/^WaylandEnable=true/WaylandEnable=false/' "$GDM_CONF"
-            ok "Wayland disabled (changed true to false)"
-        # Method 3: Add line if missing
-        elif ! grep -q "WaylandEnable" "$GDM_CONF"; then
-            if grep -q "^\[daemon\]" "$GDM_CONF"; then
-                sed -i '/^\[daemon\]/a WaylandEnable=false' "$GDM_CONF"
-            else
-                printf "\n[daemon]\nWaylandEnable=false\n" >> "$GDM_CONF"
-            fi
-            ok "Wayland disabled (added new line)"
-        else
-            ok "Wayland already disabled in GDM config"
-        fi
-
-        # Verify
-        if grep -q "^WaylandEnable=false" "$GDM_CONF"; then
-            info "GDM config updated: $GDM_CONF"
-            info "Backup saved at:    ${GDM_CONF}.nova_backup_*"
-        fi
-    elif [ "$DM" = "lightdm" ]; then
-        ok "LightDM uses X11 by default — no fix needed"
-    elif [ "$DM" = "sddm" ]; then
-        # SDDM Wayland fix
-        SDDM_CONF="/etc/sddm.conf"
-        [ -f /etc/sddm.conf.d/wayland.conf ] && SDDM_CONF="/etc/sddm.conf.d/wayland.conf"
-        if [ -f "$SDDM_CONF" ]; then
-            cp "$SDDM_CONF" "${SDDM_CONF}.nova_backup_$(date +%s)"
-            sed -i 's/^Session=plasmawayland.*/Session=plasma/' "$SDDM_CONF" 2>/dev/null
-            ok "SDDM: Switched to X11 default"
-        fi
-    else
-        warn "Could not find DM config — manual Wayland disable needed"
-    fi
-
-    # Set flag for end-of-install reminder
-    NOVA_WAYLAND_FIXED=1
-    GDM_WAYLAND_ON=1
+    NOVA_WAYLAND_OK=1
     info ""
 fi
 
@@ -430,80 +389,40 @@ if [ ! -d "$VENV" ]; then
     ok "Virtual environment created with Python 3.13"
 fi
 
-info "Upgrading pip..."
-su - "$REAL_USER" -c "'$VENV/bin/pip' install --upgrade pip -q" >>"$INSTALL_LOG" 2>&1
-
-info "Installing core packages..."
-su - "$REAL_USER" -c "
-    '$VENV/bin/pip' install -q \
-        PyQt5 \
-        numpy \
-        opencv-python \
-        python-xlib \
-        PyYAML \
-        setuptools \
-        2>/dev/null
-" >>"$INSTALL_LOG" 2>&1 && ok "Core packages installed" || fail "Core package install failed"
-# STEP 3A — Python 3.13 compatibility fixes
+# STEP 3 — Install Python deps OFFLINE from bundled wheels (no PyPI, no build)
+# dlib has no PyPI wheel, so wheels are prebuilt and shipped inside the package
+# (nova_bundle/wheels/<pyver>). Offline install means a normal user gets a working
+# face-unlock env with no network and no C++ toolchain. opencv-python-headless is
+# bundled (NOT the GUI opencv-python) so it cannot clash with PyQt5's Qt.
 VENV_PY=""
-
-for _candidate in     "$PROJECT_DIR/.venv/bin/python3"     "$HOME/NovaUnlock/.venv/bin/python3"     "/home/$REAL_USER/NovaUnlock/.venv/bin/python3"; do
-    if [ -f "$_candidate" ]; then
-        VENV_PY="$_candidate"
-        break
-    fi
+for _candidate in "$PROJECT_DIR/.venv/bin/python3" "$HOME/NovaUnlock/.venv/bin/python3" "/home/$REAL_USER/NovaUnlock/.venv/bin/python3"; do
+    [ -f "$_candidate" ] && VENV_PY="$_candidate" && break
 done
+[ -z "$VENV_PY" ] && VENV_PY="$VENV/bin/python3"
 
-if [ -z "$VENV_PY" ]; then
-    fail "Cannot find venv python3 — skipping Python 3.13 fixes"
-else
-    info "Applying Python 3.13 dependency fixes..."
+PYVER="$("$VENV_PY" -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_info.minor}")' 2>/dev/null)"
+WHEELS_DIR="$NOVA_DIR/wheels/$PYVER"
 
-    "$VENV_PY" -m pip install --upgrade pip wheel >>"$INSTALL_LOG" 2>&1
-
-    "$VENV_PY" -m pip install --no-cache-dir --no-build-isolation face-recognition-models==0.3.0 >>"$INSTALL_LOG" 2>&1 \
-      && ok "face_recognition_models installed" || fail "face_recognition_models install failed"
-
-    "$VENV_PY" -m pip install --force-reinstall "setuptools==69.5.1" >>"$INSTALL_LOG" 2>&1 \
-      && ok "setuptools pinned to 69.5.1" || warn "setuptools pin skipped"
-
-    "$VENV_PY" -m pip uninstall -y opencv-python-headless >>"$INSTALL_LOG" 2>&1 || true
-    "$VENV_PY" -m pip install opencv-python >>"$INSTALL_LOG" 2>&1       && ok "opencv-python installed" || fail "opencv-python install failed"
-
-    PYVER="$("$VENV_PY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    VENV_DIR="$(dirname "$(dirname "$VENV_PY")")"
-    export PYTHONPATH="${PYTHONPATH}:$VENV_DIR/lib/python${PYVER}/site-packages"
-
-    ok "Post-install dependency fixes applied"
-fi
-
-# BUG 3 FIX: dlib with visible progress, cmake pre-check, and clear messaging
-info "Checking cmake availability for dlib..."
-if ! command -v cmake >/dev/null 2>&1; then
-    fail "cmake not found — dlib cannot compile. Install cmake and re-run."
-    warn "face_recognition will not work without dlib"
+if [ ! -d "$WHEELS_DIR" ] || [ -z "$(ls -A "$WHEELS_DIR" 2>/dev/null)" ]; then
+    fail "Bundled wheels missing for $PYVER ($WHEELS_DIR). Cannot install dependencies offline."
+    warn "This is a packaging defect — please report it."
     record_deps_status 1 dlib face_recognition face_recognition_models
 else
-    info "Building dlib from source — this takes 3-10 minutes, please wait..."
-    echo -e "  ${CYAN}→${NC}  [ dlib compile started: $(date +%H:%M:%S) ]" | tee -a "$INSTALL_LOG"
-
-    if nova_pip_install "$VENV/bin/pip" dlib; then
-        echo -e "  ${CYAN}→${NC}  [ dlib compile ended:  $(date +%H:%M:%S) ]" | tee -a "$INSTALL_LOG"
-        info "Installing face_recognition..."
-        if nova_pip_install "$VENV/bin/pip" -q face_recognition; then
-            ok "face_recognition installed"
-            record_deps_status 0
-        else
-            fail "face_recognition install failed (dlib OK but face_recognition failed)"
-            record_deps_status 1 face_recognition face_recognition_models
-        fi
+    info "Installing bundled dependencies for $PYVER (offline)..."
+    su - "$REAL_USER" -c "'$VENV/bin/pip' install --no-index --upgrade pip wheel setuptools 2>&1" >>"$INSTALL_LOG" 2>&1 \
+        && ok "pip/wheel/setuptools upgraded" || warn "pip self-upgrade skipped"
+    if su - "$REAL_USER" -c "'$VENV/bin/pip' install --no-index '$WHEELS_DIR'/*.whl 2>&1" >>"$INSTALL_LOG" 2>&1; then
+        ok "Bundled dependencies installed ($PYVER)"
+        record_deps_status 0
     else
-        echo -e "  ${CYAN}→${NC}  [ dlib compile ended:  $(date +%H:%M:%S) ]" | tee -a "$INSTALL_LOG"
-        fail "dlib compile failed after retries — check $INSTALL_LOG for details"
-        warn "Common fix: ensure libboost-dev, libopenblas-dev, cmake are installed, then re-run this installer."
+        fail "Bundled wheel install failed for $PYVER — check $INSTALL_LOG"
         record_deps_status 1 dlib face_recognition face_recognition_models
     fi
 fi
+
+PYVER_DOT="$("$VENV_PY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)"
+VENV_DIR="$(dirname "$(dirname "$VENV_PY")")"
+export PYTHONPATH="${PYTHONPATH}:$VENV_DIR/lib/python${PYVER_DOT}/site-packages"
 
 [ "$FAIL" -eq 0 ] && ok "Python environment ready: $VENV" || warn "Python environment set up with some failures — check $INSTALL_LOG"
 
@@ -543,6 +462,9 @@ except Exception:
 " 2>/dev/null)
 
 PAM_CLEAN=\$(echo "\$PAM_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+
+# Root always uses the password (face is primary for normal users only)
+[ "\$PAM_CLEAN" = "root" ] && { echo "\$(date) ROOT SKIP" >> "\$LOGFILE"; exit 1; }
 
 if [ -n "\$CACHE_USER" ] && [ "\$CACHE_USER" = "\$PAM_CLEAN" ]; then
     echo "\$(date) CACHE HIT: \$PAM_CLEAN" >> "\$LOGFILE"
@@ -1063,6 +985,36 @@ VENV_PY="$VENV/bin/python3"
 DAEMON="$DAEMON_SCRIPT_PATH"
 DBUS_IFACE="$DBUS_IFACE"
 
+# ── Post-login "hello, {username}" greeting ──────────
+# The greeter writes /var/lib/novaunlock/last_login_user (matched user +
+# timestamp) on a successful face unlock. lightdm restarts on login, so the
+# greeting renders HERE, in the fresh user session — once, for the matching
+# user, only if the marker is fresh (<60s).
+show_login_hello() {
+    local MARKER="/var/lib/novaunlock/last_login_user"
+    [ -f "$MARKER" ] || return 0
+    local user ts now_s age
+    user=$(sed -n '1p' "$MARKER" 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    ts=$(sed -n '2p'  "$MARKER" 2>/dev/null | tr -d '[:space:]')
+    [ -n "$user" ] || { rm -f "$MARKER"; return 0; }
+    case "$ts" in (*[!0-9]*) rm -f "$MARKER"; return 0 ;; esac
+    now_s=$(date +%s)
+    age=$(( now_s - ts ))
+    [ "$age" -le 60 ] || { rm -f "$MARKER"; return 0; }
+    [ "$user" = "$(id -un)" ] || { rm -f "$MARKER"; return 0; }
+    rm -f "$MARKER"
+    NOVA_ROOT="${NOVA_DIR:-/opt/novaunlock}" "$VENV/bin/python3" - "$user" << 'HELLO'
+import sys, os
+sys.path.insert(0, os.environ.get("NOVA_ROOT", "/opt/novaunlock"))
+try:
+    from nova_unlock.ui.welcome_screen import show_welcome
+    show_welcome(sys.argv[1])
+except Exception as e:
+    sys.stderr.write("hello overlay failed: %s\n" % e)
+HELLO
+}
+show_login_hello
+
 # Issue 4 FIX: pgrep -u USER | head -5 is too broad — scans any random process
 # Target session manager processes specifically by name; they always have DBUS in environ
 if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then
@@ -1254,19 +1206,12 @@ echo
 echo "    4. Uninstall:"
 echo "       sudo bash $NOVA_DIR/uninstall.sh"
 echo
-if [ "${NOVA_WAYLAND_FIXED:-0}" = "1" ]; then
+if [ "${NOVA_WAYLAND_OK:-0}" = "1" ]; then
     echo
-    echo -e "  ${YELLOW}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "  ${YELLOW}║       ⚠️  REBOOT REQUIRED                    ║${NC}"
-    echo -e "  ${YELLOW}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "  ${GREEN}ℹ️  Wayland session detected — supported out of the box.${NC}"
     echo
-    echo "  Wayland was disabled to enable face unlock."
-    echo "  Please reboot now:"
-    echo
-    echo -e "    ${BOLD}sudo reboot${NC}"
-    echo
-    echo "  After reboot, your session will use X11 automatically."
-    echo "  Face unlock will work after enrolling your face."
+    echo "  NovaUnlock runs on Wayland via XWayland; no display-manager changes"
+    echo "  were made. Face unlock will work after enrolling your face."
     echo
 fi
 [ "$FAIL" -gt 0 ] && echo -e "  ${YELLOW}Full log: $INSTALL_LOG${NC}" && echo

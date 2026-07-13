@@ -10,7 +10,7 @@
 #     nova_pkg_postinstall.sh configure     # install / upgrade
 #     nova_pkg_postinstall.sh remove        # uninstall
 #
-set -uo pipefail
+set -o pipefail
 
 ACTION="${1:-configure}"
 
@@ -91,53 +91,36 @@ ensure_runtime_deps() {
     local py="${VENV_PY:-python3}"
     command -v "$py" >/dev/null 2>&1 || py="python3"
 
-    if ! "$py" -m pip --version >/dev/null 2>&1; then
-        warn "pip is not available for $py — cannot auto-install dlib/face_recognition."
-        warn "Install them manually once this package install finishes:"
-        warn "    sudo $py -m pip install --break-system-packages dlib face_recognition face_recognition_models"
+    local pyver
+    pyver=$("$py" -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null) \
+        || { warn "Cannot determine Python version — cannot install bundled wheels."; record_deps_status 1 "dlib face_recognition face_recognition_models"; return 1; }
+
+    local WHEELS_DIR="$NOVA_DIR/wheels/$pyver"
+    if [ ! -d "$WHEELS_DIR" ] || [ -z "$(ls -A "$WHEELS_DIR" 2>/dev/null)" ]; then
+        warn "Bundled wheels for $pyver are MISSING ($WHEELS_DIR)."
+        warn "NovaUnlock cannot install its ML dependencies offline. Face unlock will NOT work."
+        warn "This is a packaging defect — please report it. Remediation: reinstall a complete package."
         record_deps_status 1 "dlib face_recognition face_recognition_models"
+        return 1
+    fi
+
+    log "Installing bundled ML dependencies for $pyver (offline) from $WHEELS_DIR ..."
+    # --find-links points pip at the bundled wheelhouse; --no-index disables PyPI.
+    # Without --find-links, --no-index leaves pip with NO source and the install
+    # fails with "No matching distribution" (the dlib import failure in testing).
+    # Named packages (not *.whl) let pip pick the version-compatible wheel and
+    # ignore any stray cross-version wheels present in the same dir.
+    if "$py" -m pip install --no-index --find-links "$WHEELS_DIR" --break-system-packages \
+            dlib face_recognition face_recognition_models 2>&1 | sed 's/^/[NovaUnlock] /'; then
+        ok "Bundled ML dependencies installed ($pyver)"
+        record_deps_status 0
         return 0
     fi
 
-    local missing=()
-    for m in dlib face_recognition face_recognition_models; do
-        if "$py" -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('$m') else 1)" 2>/dev/null; then
-            log "runtime dep present: $m"
-        else
-            missing+=("$m")
-        fi
-    done
-    [ "${#missing[@]}" -eq 0 ] && { record_deps_status 0; return 0; }
-
-    log "installing missing runtime deps via pip: ${missing[*]}"
-    local attempt rc=1
-    for attempt in 1 2 3; do
-        if "$py" -m pip install --break-system-packages --quiet "${missing[@]}" 2>&1 \
-                | sed 's/^/[NovaUnlock] /'; then
-            rc=0
-            break
-        fi
-        warn "pip install attempt $attempt failed for: ${missing[*]}"
-        [ "$attempt" -lt 3 ] && sleep 5
-    done
-
-    # Re-verify what actually imported.
-    local still_missing=()
-    for m in "${missing[@]}"; do
-        "$py" -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('$m') else 1)" 2>/dev/null \
-            || still_missing+=("$m")
-    done
-
-    if [ "${#still_missing[@]}" -eq 0 ]; then
-        ok "runtime deps installed: ${missing[*]}"
-        record_deps_status 0
-    else
-        warn "could NOT auto-install: ${still_missing[*]}"
-        warn "NovaUnlock will fall back to your password until these are installed:"
-        warn "    sudo $py -m pip install --break-system-packages ${still_missing[*]}"
-        record_deps_status 1 "${still_missing[*]}"
-    fi
-    return 0
+    warn "Failed to install bundled wheels for $pyver from $WHEELS_DIR."
+    warn "Face unlock will NOT work until this is resolved."
+    record_deps_status 1 "dlib face_recognition face_recognition_models"
+    return 1
 }
 
 # Persist a machine-readable dependency status so the app (and support) can
@@ -201,13 +184,20 @@ setup_faces_dir() {
 
 # ── PAM auth script (reads the short-lived face-match cache) ───────────
 write_pam_auth_script() {
-    cat > "$PAM_SCRIPT_BIN" << 'PAMSCRIPT'
+    # Deploy the canonical rich PAM script from the package tree. It performs
+    # the lock-screen cache check AND live face auth for sudo/su/pkexec/polkit
+    # (face primary, password fallback), and always skips root.
+    local src="$NOVA_DIR/nova_unlock/pam/pam_script_auth"
+    if [ -f "$src" ]; then
+        cp "$src" "$PAM_SCRIPT_BIN"
+    else
+        # Fallback (should not happen) — cache-only with root skip.
+        cat > "$PAM_SCRIPT_BIN" << 'PAMSCRIPT'
 #!/bin/bash
 CACHE="/var/lib/novaunlock/pam_cache.json"
 LOGFILE="/var/log/novaunlock/pam_auth.log"
 echo "$(date) PAM called for: $PAM_USER" >> "$LOGFILE"
 [ ! -f "$CACHE" ] && echo "$(date) NO CACHE" >> "$LOGFILE" && exit 1
-
 CACHE_USER=$(python3 -c "
 import json, sys, time
 try:
@@ -219,9 +209,8 @@ try:
 except Exception:
     pass
 " 2>/dev/null)
-
 PAM_CLEAN=$(echo "$PAM_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-
+[ "$PAM_CLEAN" = "root" ] && exit 1
 if [ -n "$CACHE_USER" ] && [ "$CACHE_USER" = "$PAM_CLEAN" ]; then
     echo "$(date) CACHE HIT: $PAM_CLEAN" >> "$LOGFILE"
     rm -f "$CACHE"
@@ -231,6 +220,7 @@ echo "$(date) CACHE MISS: cache=$CACHE_USER pam=$PAM_CLEAN" >> "$LOGFILE"
 rm -f "$CACHE"
 exit 1
 PAMSCRIPT
+    fi
     chmod 755 "$PAM_SCRIPT_BIN"
 }
 
@@ -324,10 +314,41 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export PULSE_SERVER="unix:${XDG_RUNTIME_DIR}/pulse/native"
 export NOVA_FACES_DIR="/var/lib/novaunlock/faces"
 
+# ── Post-login "hello, {username}" greeting ──────────
+# The lock-screen / login greeter writes /var/lib/novaunlock/last_login_user
+# (matched user + timestamp) on a successful face unlock. Because lightdm
+# restarts on login, the greeting must render HERE, inside the fresh user
+# session. Shown once, only for the matching user, and only if fresh (<60s).
+show_login_hello() {
+    local MARKER="/var/lib/novaunlock/last_login_user"
+    [ -f "$MARKER" ] || return 0
+    local user ts now_s age
+    user=$(sed -n '1p' "$MARKER" 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    ts=$(sed -n '2p'  "$MARKER" 2>/dev/null | tr -d '[:space:]')
+    [ -n "$user" ] || { rm -f "$MARKER"; return 0; }
+    case "$ts" in (*[!0-9]*) rm -f "$MARKER"; return 0 ;; esac
+    now_s=$(date +%s)
+    age=$(( now_s - ts ))
+    [ "$age" -le 60 ] || { rm -f "$MARKER"; return 0; }
+    [ "$user" = "$(id -un)" ] || { rm -f "$MARKER"; return 0; }
+    rm -f "$MARKER"
+    NOVA_ROOT="${NOVA_DIR:-/opt/novaunlock}" python3 - "$user" << 'HELLO'
+import sys, os
+sys.path.insert(0, os.environ.get("NOVA_ROOT", "/opt/novaunlock"))
+try:
+    from nova_unlock.ui.welcome_screen import show_welcome
+    show_welcome(sys.argv[1])
+except Exception as e:
+    sys.stderr.write("hello overlay failed: %s\n" % e)
+HELLO
+}
+show_login_hello
+
 WLOG=/var/log/novaunlock/watcher.log
 FLOG=/var/log/novaunlock/face_auth.log
 VENV_PY=/usr/bin/python3
 DAEMON=/opt/novaunlock/scripts/face_unlock_daemon.pyc
+HELLO_MARKER=/var/lib/novaunlock/hello_shown
 
 DBUS_IFACE="org.xfce.ScreenSaver"
 case "${XDG_CURRENT_DESKTOP:-}" in
@@ -336,6 +357,20 @@ case "${XDG_CURRENT_DESKTOP:-}" in
     *MATE*)     DBUS_IFACE="org.mate.ScreenSaver" ;;
     *Cinnamon*) DBUS_IFACE="org.cinnamon.ScreenSaver" ;;
 esac
+
+# Begin a fresh unlock session: kill any running daemon, drop the lock file, and
+# clear the "Hello <username>" greeting marker so the NEXT successful face match
+# greets once. Called on screen-lock AND on resume-from-sleep, so facelock runs
+# again whether the user locked manually, walked away (idle timeout), or closed
+# the laptop lid.
+start_unlock_session() {
+    echo "$(date) UNLOCK SESSION START" >> "$WLOG"
+    pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+    rm -f /tmp/nova_unlock_face.lock
+    rm -f "$HELLO_MARKER"
+    sleep 0.8
+    "$VENV_PY" "$DAEMON" >> "$FLOG" 2>&1 &
+}
 
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     for SM in xfce4-session gnome-session mate-session plasmashell cinnamon-session; do
@@ -352,6 +387,7 @@ run_monitor() {
             echo "$(date) LOCKED" >> "$WLOG"
             pkill -f "face_unlock_daemon.pyc" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
+            rm -f "$HELLO_MARKER"
             sleep 0.8
             "$VENV_PY" "$DAEMON" >> "$FLOG" 2>&1 &
         elif echo "$LINE" | grep -q "boolean false"; then
@@ -361,7 +397,24 @@ run_monitor() {
         fi
     done
 }
+
+# ── systemd-logind monitor ──────────────────────────────────────────────
+# Covers laptop lid-close + suspend/resume: when the machine wakes (PrepareForSleep
+# "boolean false") we start a fresh unlock session, so facelock runs again even
+# though no screensaver ActiveChanged fired. (Idle screen-blank is already handled
+# by the ActiveChanged monitor above on XFCE/GNOME/KDE/MATE/Cinnamon.)
+run_sleep_monitor() {
+    dbus-monitor --system "type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'" 2>/dev/null | while read LINE; do
+        if echo "$LINE" | grep -q "boolean false"; then
+            echo "$(date) RESUME (lid/suspend) — restarting facelock" >> "$WLOG"
+            start_unlock_session
+        fi
+    done
+}
+
 echo "$(date) Watcher started (iface: $DBUS_IFACE)" >> "$WLOG"
+# Launch the suspend/resume monitor alongside the screensaver monitor.
+run_sleep_monitor &
 while true; do
     run_monitor
     echo "$(date) dbus-monitor exited — restarting in 3s" >> "$WLOG"
