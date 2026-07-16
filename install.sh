@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════
-#  NovaUnlock Installer v2.012
+#  NovaUnlock Installer v2.014
 #  Distros:  Debian / Ubuntu / Kali | Fedora / RHEL | Arch | openSUSE
 #  Desktops: XFCE | GNOME | KDE | MATE | Cinnamon
 #  DMs:      LightDM | GDM | SDDM
@@ -85,7 +85,7 @@ PY
 
 echo
 echo -e "${BOLD}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║     NovaUnlock — Installer v2.012             ║${NC}"
+echo -e "${BOLD}║     NovaUnlock — Installer v2.014             ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
 
@@ -979,6 +979,14 @@ export XAUTHORITY="$REAL_HOME/.Xauthority"
 export XDG_RUNTIME_DIR="/run/user/$REAL_UID"
 export PULSE_SERVER="unix:\${XDG_RUNTIME_DIR}/pulse/native"
 
+# Ensure the log dir exists (otherwise the redirect below silently drops all
+# watcher output and "watcher not running" becomes undebuggable).
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+# Clear any stale unlock-daemon lock file so a crashed previous session can't
+# block the next one from starting.
+rm -f /tmp/nova_unlock_face.lock 2>/dev/null || true
+
 WLOG="$LOG_DIR/watcher.log"
 FLOG="$LOG_DIR/face_auth.log"
 VENV_PY="$VENV/bin/python3"
@@ -1074,6 +1082,10 @@ DESKTOP
 chown "$REAL_USER:$REAL_GROUP" "$AUTOSTART_DIR/nova-unlock-watcher.desktop"
 
 pkill -f nova_unlock_watcher.sh 2>/dev/null; sleep 0.3
+# Log dir MUST exist before the nohup redirect below, otherwise the parent
+# shell's ">> $LOG_DIR/watcher.log" fails and all output is lost.
+mkdir -p "$LOG_DIR"
+chown "$REAL_USER:$REAL_GROUP" "$LOG_DIR" 2>/dev/null || true
 su -s /bin/bash "$REAL_USER" -c "
     export DISPLAY=:0
     export XAUTHORITY=$REAL_HOME/.Xauthority
@@ -1082,6 +1094,38 @@ su -s /bin/bash "$REAL_USER" -c "
     disown
 " 2>/dev/null || true
 ok "Watcher installed (dbus: $DBUS_IFACE, auto-restart: enabled)"
+
+# ── Background presence-guard daemon (systemd user service) ───────────────
+# The XDG-autostart watcher above launches the unlock UI on screen-lock. This
+# systemd user service keeps the persistent FacePresenceGuard (auto-lock when
+# you walk away) running in the background across reboots/logins. Paths are
+# resolved to the real install dir (the repo's systemd/nova-unlock-watcher.service
+# is only a template and hard-codes the dev tree).
+SYSTEMD_USER_DIR="$REAL_HOME/.config/systemd/user"
+mkdir -p "$SYSTEMD_USER_DIR"
+cat > "$SYSTEMD_USER_DIR/nova-unlock-watcher.service" << SVC
+[Unit]
+Description=NovaUnlock Face Presence Guard
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=$VENV/bin/python3 $NOVA_DIR/scripts/face_unlock_daemon.py --guard
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=$REAL_HOME/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/$REAL_UID
+
+[Install]
+WantedBy=graphical-session.target
+SVC
+chown "$REAL_USER:$REAL_GROUP" "$SYSTEMD_USER_DIR/nova-unlock-watcher.service"
+# Enable + start as the real user (needs the user's systemd session running).
+su -s /bin/bash "$REAL_USER" -c "XDG_RUNTIME_DIR=/run/user/$REAL_UID systemctl --user daemon-reload && systemctl --user enable --now nova-unlock-watcher.service" 2>/dev/null || \
+    warn "Could not enable systemd user service (no active user session yet). It will start on next login."
+ok "Presence-guard background service registered (systemd user service)"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 8 — Permissions + Sudoers + Uninstaller

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-5.4}"
+VERSION="${VERSION:-2.014}"
 RELEASE_DIR="$ROOT_DIR/build/release/linux-v$VERSION"
 BUNDLE_DIR="$RELEASE_DIR/nova_bundle"
 DIST_DIR="$ROOT_DIR/dist"

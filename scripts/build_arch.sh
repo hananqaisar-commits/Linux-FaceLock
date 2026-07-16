@@ -7,7 +7,7 @@
 #
 set -euo pipefail
 
-VERSION="${VERSION:-2.012}"
+VERSION="${VERSION:-2.014}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 OUT="$RELEASE/NovaUnlock-v$VERSION-Arch.pkg.tar.zst"

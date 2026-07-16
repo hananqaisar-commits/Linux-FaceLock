@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-2.012}"
+VERSION="${VERSION:-2.014}"
 SOURCE_DIR="${WINDOWS_SOURCE_DIR:-$ROOT_DIR/build/win_release}"
 RELEASE_DIR="$ROOT_DIR/build/release/windows-v$VERSION"
 OUTPUT_ZIP="$ROOT_DIR/dist/nova_unlock_windows_v$VERSION.zip"
