@@ -90,10 +90,10 @@ echo "==================================================================="
 
 # --- 1. stop + disable systemd user service --------------------------------
 echo "[1] Disabling systemd watcher service..."
-run "su -s /bin/bash '$REAL_USER' -c 'XDG_RUNTIME_DIR=/run/user/$REAL_UID systemctl --user disable --now nova-unlock-watcher.service 2>/dev/null' || true"
+run "timeout 20 su -s /bin/bash '$REAL_USER' -c 'XDG_RUNTIME_DIR=/run/user/$REAL_UID systemctl --user disable --now nova-unlock-watcher.service 2>/dev/null' || true"
 run "systemctl disable --now nova-unlock-watcher.service 2>/dev/null || true"   # system-level (if any)
 run "rm -f '$REAL_HOME/.config/systemd/user/nova-unlock-watcher.service'"
-run "su -s /bin/bash '$REAL_USER' -c 'XDG_RUNTIME_DIR=/run/user/$REAL_UID systemctl --user daemon-reload 2>/dev/null' || true"
+run "timeout 20 su -s /bin/bash '$REAL_USER' -c 'XDG_RUNTIME_DIR=/run/user/$REAL_UID systemctl --user daemon-reload 2>/dev/null' || true"
 
 # --- 2. kill running daemons ------------------------------------------------
 echo "[2] Killing NovaUnlock daemons..."
@@ -114,7 +114,7 @@ for f in "${REMOVE_FILES[@]}"; do
     run "rm -f '$f'"
 done
 run "rm -f /tmp/nova_* 2>/dev/null || true"
-run "su - '$REAL_USER' -c \"xfconf-query -c xfce4-session -p /general/LockCommand -r 2>/dev/null\" 2>/dev/null || true"
+run "timeout 15 su - '$REAL_USER' -c \"xfconf-query -c xfce4-session -p /general/LockCommand -r 2>/dev/null\" 2>/dev/null || true"
 
 # --- 5. remove native install dir + runtime state (incl. ENROLLED FACES) ----
 echo "[5] Removing installed app dir and runtime state (enrolled faces)..."
