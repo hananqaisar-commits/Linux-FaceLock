@@ -1,5 +1,13 @@
 # Linux-FaceLock .gitignore
 
+# Environment Variables & Secrets
+.env
+.env.*
+*.pem
+*.key
+*.secret
+.nova-private/
+
 # Python Bytecode & Cache
 __pycache__/
 *.py[cod]
