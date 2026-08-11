@@ -15,7 +15,7 @@ def app():
     return QApplication.instance() or QApplication([])
 
 def test_widget_creation(app):
-    from nova_unlock.ui.face_id_screen import Sig, FaceUnlockWidget
+    from nova_unlock.ui.face_id_embed import Sig, FaceUnlockWidget
     sig = Sig()
     w = FaceUnlockWidget(sig, demo_mode=True)
     assert w is not None
@@ -23,7 +23,7 @@ def test_widget_creation(app):
     assert w.H == 160
 
 def test_faceworker_initialization():
-    from nova_unlock.ui.face_id_screen import Sig, FaceWorker
+    from nova_unlock.ui.face_id_embed import Sig, FaceWorker
     sig = Sig()
     worker = FaceWorker(sig)
     assert worker.on is True

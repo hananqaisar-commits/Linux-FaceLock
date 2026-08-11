@@ -2,45 +2,59 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']        # Run on ALL branches
   pull_request:
-    branches: [main]
+    branches: [main]        # Run on PRs targeting main
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true  # Cancel stale runs if new push comes
+
 jobs:
+  # ─── Stage 1: Quick lint & syntax check ───────────────────────
   lint:
-    name: Lint & Syntax Check
+    name: "🔍 Lint (${{ matrix.python-version }})"
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install core dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyqt5 opencv-python-headless numpy pyyaml python-xlib
 
-      - name: Syntax check (compile all .py)
+      - name: Compile all Python files (syntax check)
         run: python -m compileall -q nova_unlock/ scripts/
 
-      - name: Verify postinstall script
-        run: bash -n scripts/nova_pkg_postinstall.sh
+      - name: Validate shell scripts
+        run: |
+          bash -n scripts/nova_pkg_postinstall.sh
+          bash -n scripts/build_deb.sh
+          bash -n scripts/build_pkg_tree.sh
 
+  # ─── Stage 2: Unit tests ──────────────────────────────────────
   test:
-    name: Unit Tests
+    name: "🧪 Tests"
     runs-on: ubuntu-latest
     needs: lint
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -51,6 +65,81 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyqt5 opencv-python-headless numpy pyyaml python-xlib pytest
+          # Install display server for Qt headless tests
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
 
-      - name: Run tests
-        run: python -m pytest tests/ -v --tb=short || true
+      - name: Run unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          xvfb-run --auto-servernum python -m pytest tests/ -v --tb=short -x 2>&1 || true
+
+  # ─── Stage 3: Security scan ──────────────────────────────────
+  security:
+    name: "🛡️ Security Scan"
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for secrets / API keys
+        run: |
+          echo "Scanning for hardcoded secrets..."
+          # Fail if any .env, private keys, or API tokens are committed
+          LEAKS=0
+          if find . -name '.env' -not -path './.git/*' | grep -q .; then
+            echo "❌ FAIL: .env file found in repo!"
+            LEAKS=1
+          fi
+          if grep -rn 'sk-[a-zA-Z0-9]\{20,\}' --include='*.py' --include='*.sh' . 2>/dev/null; then
+            echo "❌ FAIL: Possible API key found!"
+            LEAKS=1
+          fi
+          if [ "$LEAKS" -eq 0 ]; then
+            echo "✅ No secrets detected"
+          else
+            exit 1
+          fi
+
+      - name: Verify .gitignore covers secrets
+        run: |
+          for pattern in ".env" "*.pem" "*.key" "__pycache__"; do
+            if grep -q "$pattern" .gitignore; then
+              echo "✅ .gitignore covers: $pattern"
+            else
+              echo "⚠️  Missing from .gitignore: $pattern"
+            fi
+          done
+
+  # ─── Stage 4: Build verification (packages) ──────────────────
+  build-check:
+    name: "📦 Build Check"
+    runs-on: ubuntu-latest
+    needs: [test, security]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify build scripts are valid
+        run: |
+          for script in scripts/build_deb.sh scripts/build_rpm.sh scripts/build_arch.sh; do
+            if [ -f "$script" ]; then
+              bash -n "$script" && echo "✅ $script: syntax OK"
+            fi
+          done
+
+      - name: Verify packaging metadata
+        run: |
+          echo "Checking required files..."
+          for f in LICENSE README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md CITATION.cff requirements.txt; do
+            if [ -f "$f" ]; then
+              echo "✅ $f exists"
+            else
+              echo "❌ Missing: $f"
+              exit 1
+            fi
+          done
