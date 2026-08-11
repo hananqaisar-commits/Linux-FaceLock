@@ -4,7 +4,7 @@
 
 ### *Authentic Dynamic Island Face ID & PAM Face Authentication for Linux & Windows*
 
-[![GitHub release](https://img.shields.io/github/v/release/hananqaisar-commits/NovaUnlock?style=for-the-badge&color=007ACC&logo=github)](https://github.com/hananqaisar-commits/NovaUnlock/releases)
+[![GitHub release](https://img.shields.io/github/v/release/hananqaisar-commits/Linux-FaceLock?style=for-the-badge&color=007ACC&logo=github)](https://github.com/hananqaisar-commits/Linux-FaceLock/releases)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?style=for-the-badge&logo=python)](https://python.org)
 [![Linux Support](https://img.shields.io/badge/Distros-Ubuntu%20%7C%20Fedora%20%7C%20Arch%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux)](README.md)
@@ -20,7 +20,7 @@
 
 ## ⚡ Overview
 
-**Linux-FaceLock** (NovaUnlock) is a next-generation, high-performance facial recognition lock screen integration for Linux desktop environments (GNOME, KDE Plasma, XFCE, LightDM, SDDM, GDM) and Windows. 
+**Linux-FaceLock** is a next-generation, high-performance facial recognition lock screen integration for Linux desktop environments (GNOME, KDE Plasma, XFCE, LightDM, SDDM, GDM) and Windows. 
 
 Inspired by Apple's Dynamic Island aesthetics, it delivers **sub-second facial verification**, zero UI latency, smooth 60 FPS spring physics, interactive audio cues, and native Linux PAM stack security.
 
@@ -44,7 +44,7 @@ Inspired by Apple's Dynamic Island aesthetics, it delivers **sub-second facial v
 
 ### Option 1: Native Package Manager (Recommended)
 
-Download the latest binary release for your distribution from [GitHub Releases](https://github.com/hananqaisar-commits/NovaUnlock/releases/tag/v2.21):
+Download the latest binary release for your distribution from [GitHub Releases](https://github.com/hananqaisar-commits/Linux-FaceLock/releases):
 
 #### 🌀 Debian / Ubuntu / Kali / Mint / Pop!_OS (`.deb`)
 ```bash
