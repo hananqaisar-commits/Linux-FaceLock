@@ -12,9 +12,14 @@
 
 <br/>
 
+![Linux-FaceLock Banner](assets/banner.png)
+
+<br/>
+
 **[Features](#-features)** • **[Installation](#-installation)** • **[Quick Demo](#-quick-demo)** • **[Architecture](#-architecture)** • **[Contributing](#-contributing)**
 
 </div>
+
 
 ---
 

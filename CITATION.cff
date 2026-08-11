@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software in your research or technical articles, please cite it as below."
+authors:
+  - family-names: Qaisar
+    given-names: Hanan
+title: "Linux-FaceLock: Authentic Dynamic Island Face ID & PAM Face Authentication for Linux & Windows"
+version: 2.21
+date-released: 2026-08-11
+url: "https://github.com/hananqaisar-commits/Linux-FaceLock"
