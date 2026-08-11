@@ -12,7 +12,7 @@
 
 <br/>
 
-![Linux-FaceLock Banner](assets/banner.png)
+![Linux-FaceLock Scanning](assets/facelock_scanning.png)
 
 <br/>
 
