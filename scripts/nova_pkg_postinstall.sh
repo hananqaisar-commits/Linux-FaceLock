@@ -250,15 +250,14 @@ configure_pam_lockscreen() {
 }
 
 configure_pam_sudo() {
-    local pam_file="$1" label="$2"
-    [ -f "$pam_file" ] && sed -i "/nova_pam_auth\|pam_script\.so\|pam_exec\.so.*nova/d" "$pam_file"
+    local pam_file="$1" label="$2" method="$3"
+    [ -f "$pam_file" ] && sed -i "/nova_pam_auth\|pam_script\.so\|pam_exec\.so.*nova/d" "$pam_file" 2>/dev/null
     if [ -f "$pam_file" ]; then
-        printf "auth    sufficient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN\n" > "$TMP"
-        cat "$pam_file" >> "$TMP"
-        mv "$TMP" "$pam_file"
-        ok "PAM privilege: $label"cient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN" > "$TMP"
+        TMP=$(mktemp)
+        if [ "$method" = "pam_script" ]; then
+            printf "auth    sufficient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN\n" > "$TMP"
         else
-            printf '%s\n' "auth    [success=ok default=ignore]  pam_exec.so quiet $PAM_SCRIPT_BIN" > "$TMP"
+            printf "auth    [success=ok default=ignore]  pam_exec.so quiet $PAM_SCRIPT_BIN\n" > "$TMP"
         fi
         cat "$pam_file" >> "$TMP"
         mv "$TMP" "$pam_file"

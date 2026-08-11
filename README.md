@@ -12,10 +12,6 @@
 
 <br/>
 
-![Linux-FaceLock Scanning](assets/facelock_scanning.png)
-
-<br/>
-
 **[Features](#-features)** • **[Installation](#-installation)** • **[Quick Demo](#-quick-demo)** • **[Architecture](#-architecture)** • **[Contributing](#-contributing)**
 
 </div>
@@ -98,12 +94,20 @@ python3 -m nova_unlock.ui.face_unlock_widget --demo
 
 ---
 
-## 🎬 Quick Demo Mode
+## 🎬 Quick Demo & Enrollment
 
-Test the Dynamic Island animation and sound effects locally:
+Try out the biometric lock screens and enrollment screens locally:
 
+### 1. Face ID Animation & Scanner Demo
+To launch the authentic iOS-style Dynamic Island scanner and cycle through scanning states (Success ➔ Fail ➔ Success) with audio effects:
 ```bash
-python3 -m nova_unlock.ui.face_unlock_widget --demo
+python3 -m nova_unlock.ui.face_id_embed
+```
+
+### 2. Face Enrollment Wizard
+To enroll your face biometric template and register it locally:
+```bash
+python3 -m nova_unlock.ui.enrollment_wizard
 ```
 
 ---
