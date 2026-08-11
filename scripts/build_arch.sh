@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# build_arch.sh — Build NovaUnlock-v${VERSION:-5.4}-Arch.pkg.tar.zst
+# build_arch.sh — Build NovaUnlock-v${VERSION:-2.21}-Arch.pkg.tar.zst
 # makepkg is unavailable, so the package is constructed manually:
 #   .PKGINFO + .MTREE (via gen_mtree.py) + .INSTALL + file tree, then tar --zstd.
 # Pyc compiled with host python3.13 (matches Arch rolling 3.13).
 #
 set -euo pipefail
 
-VERSION="${VERSION:-2.014}"
+VERSION="2.21"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 OUT="$RELEASE/NovaUnlock-v$VERSION-Arch.pkg.tar.zst"
@@ -22,7 +22,9 @@ echo "==> Staging pyc tree (python $PY_BIN)"
 bash "$REPO/scripts/build_pkg_tree.sh" "$PY_BIN" "$STAGE"
 
 # Static integration files
-mkdir -p "$STAGE/usr/lib/systemd/user" "$STAGE/etc/xdg/autostart"
+mkdir -p "$STAGE/usr/lib/systemd/user" "$STAGE/usr/lib/systemd/system" "$STAGE/etc/xdg/autostart"
+install -m 0644 "$REPO/systemd/nova-facelock.service" \
+    "$STAGE/usr/lib/systemd/system/nova-facelock.service"
 cat > "$STAGE/usr/lib/systemd/user/nova-unlock-watcher.service" << 'UNIT'
 [Unit]
 Description=NovaUnlock Face Presence Guard
@@ -102,6 +104,7 @@ PKG
 echo "==> Creating $OUT"
 tar --zstd -cf "$OUT" -C "$STAGE" .PKGINFO .MTREE .INSTALL \
     opt usr etc
+sha256sum "$OUT" > "$OUT.sha256"
 echo "==> Built: $OUT ($(stat -c %s "$OUT") bytes)"
 
 rm -rf "$WORK"

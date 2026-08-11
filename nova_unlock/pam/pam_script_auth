@@ -1,0 +1,148 @@
+#!/bin/bash
+
+# ── Auto-detect Nova installation ──────────────────
+if [ -n "$NOVA_ROOT" ]; then
+    NOVA_DIR="$NOVA_ROOT"
+elif [ -n "$PAM_USER" ] && [ -d "/home/$PAM_USER/.local/share/nova-unlock" ]; then
+    NOVA_DIR="/home/$PAM_USER/.local/share/nova-unlock"
+elif [ -d "/opt/nova-unlock" ]; then
+    NOVA_DIR="/opt/nova-unlock"
+elif [ -d "/opt/novaunlock" ]; then
+    # Native Debian/Fedora/Arch packages install here (without the hyphen).
+    NOVA_DIR="/opt/novaunlock"
+else
+    NOVA_DIR="$(dirname "$(dirname "$(realpath "$0")")")"
+fi
+
+# ── Detect PAM service context early ─────────────────
+PAM_SERVICE="${PAM_SERVICE:-unknown}"
+
+# ── Auto-detect real invoking user ──────────────────
+case "$PAM_SERVICE" in
+    sudo|su|pkexec|polkit-1|PolicyKit-1|kscreenlocker|kde)
+        if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+            REAL_USER="$SUDO_USER"
+        elif [ -n "${PAM_RUSER:-}" ] && [ "$PAM_RUSER" != "root" ]; then
+            REAL_USER="$PAM_RUSER"
+        else
+            REAL_USER=$(logname 2>/dev/null || echo "${USER:-}")
+        fi
+        ;;
+    *)
+        if [ -n "${PAM_USER:-}" ]; then
+            REAL_USER="$PAM_USER"
+        elif [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+            REAL_USER="$SUDO_USER"
+        else
+            REAL_USER=$(logname 2>/dev/null || echo "${USER:-}")
+        fi
+        ;;
+esac
+
+# ── Logs ───────────────────────────────────────────
+LOG_DIR="/var/log/novaunlock"
+mkdir -p "$LOG_DIR"
+LOGFILE="$LOG_DIR/pam_nova_face.log"
+# Must match the path the daemon / lock-screen UI writes (get_pam_cache_file).
+CACHE="/var/lib/novaunlock/pam_cache.json"
+
+# The system service is the single enable/disable switch.  A disabled
+# FaceLock must always fall through to the distribution's password modules.
+[ -f "/etc/novaunlock/facelock.enabled" ] || exit 1
+
+# ── Root exclusion: only skip if INVOKING user is root ──
+REAL_USER_CLEAN=$(echo "$REAL_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+AUTH_USER_CLEAN="$REAL_USER_CLEAN"
+if [ "$REAL_USER_CLEAN" = "root" ]; then
+    echo "$(date) ROOT SKIP service=$PAM_SERVICE real=$REAL_USER pam=${PAM_USER:-}" >> "$LOGFILE"
+    exit 1
+fi
+
+echo "$(date) PAM auth called service=$PAM_SERVICE real=$REAL_USER pam=${PAM_USER:-}" >> "$LOGFILE"
+
+# ── Cache check (lockscreen + sudo + polkit all use same cache) ─────
+if [ -f "$CACHE" ]; then
+    CACHE_RESULT=$(
+        python3 - "$CACHE" << 'PY'
+import json, sys, time
+p = sys.argv[1]
+try:
+    d = json.load(open(p))
+    u = str(d.get("user", "")).strip().lower()
+    ts = float(d.get("ts", 0))
+    if u and (time.time() - ts) <= 15:
+        print(u)
+except Exception:
+    pass
+PY
+    )
+
+    if [ -n "$CACHE_RESULT" ] && [ -n "$AUTH_USER_CLEAN" ] && [ "$CACHE_RESULT" = "$AUTH_USER_CLEAN" ]; then
+        echo "$(date) CACHE HIT service=$PAM_SERVICE user=$AUTH_USER_CLEAN" >> "$LOGFILE"
+        rm -f "$CACHE"
+        exit 0
+    fi
+
+    echo "$(date) CACHE MISS cache=$CACHE_RESULT auth=$AUTH_USER_CLEAN pam=${PAM_USER:-}" >> "$LOGFILE"
+    rm -f "$CACHE"
+fi
+
+# ── Live face auth for sudo/polkit/pkexec (no existing cache) ───────
+case "$PAM_SERVICE" in
+    sudo|su|pkexec|polkit-1|PolicyKit-1|kscreenlocker|kde)
+        echo "$(date) PRIVILEGE REQUEST: live face auth for $REAL_USER" >> "$LOGFILE"
+
+        # Find python — check all common install locations, then system python.
+        # Packages install deps into the system site-packages, so /usr/bin/python3
+        # is a valid runtime when no dedicated venv is present.
+        VENV_PY=""
+        for _venv_candidate in \
+            "/home/$REAL_USER/NovaUnlock/.venv/bin/python3" \
+            "$NOVA_DIR/.venv/bin/python3" \
+            "/opt/novaunlock/.venv/bin/python3" \
+            "/opt/nova-unlock/.venv/bin/python3" \
+            "/usr/bin/python3"; do
+            if [ -f "$_venv_candidate" ]; then
+                VENV_PY="$_venv_candidate"
+                break
+            fi
+        done
+
+        if [ -z "$VENV_PY" ]; then
+            echo "$(date) SUDO_AUTH: venv not found — fallback password" >> "$LOGFILE"
+            exit 1
+        fi
+
+        # Run face_sudo() — 5 attempts, 2 sec pause (existing project rules preserved)
+        # PAM must never remain blocked indefinitely if a camera driver hangs.
+        NOVA_ROOT="$NOVA_DIR" \
+        SUDO_USER="$REAL_USER" \
+        PAM_USER="$REAL_USER" \
+        timeout 25s "$VENV_PY" - << 'PYRUN'
+import sys, os
+sys.path.insert(0, os.environ.get("NOVA_ROOT", ""))
+try:
+    from nova_unlock.security.face_auth_pam import face_sudo
+    target = os.environ.get("SUDO_USER") or os.environ.get("PAM_USER", "")
+    result = face_sudo(target)
+    sys.exit(0 if result else 1)
+except Exception as e:
+    import logging
+    logging.getLogger("nova.pam").error(f"face_sudo error: {e}")
+    sys.exit(1)
+PYRUN
+
+        EXIT_CODE=$?
+        if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "$(date) SUDO_AUTH: SUCCESS for $REAL_USER" >> "$LOGFILE"
+            exit 0
+        else
+            echo "$(date) SUDO_AUTH: FAILED for $REAL_USER — fallback password" >> "$LOGFILE"
+            exit 1
+        fi
+        ;;
+esac
+
+# ── All other services — no cache = fallback to password ───────────
+echo "$(date) NO CACHE service=$PAM_SERVICE — use password" >> "$LOGFILE"
+exit 1

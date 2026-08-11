@@ -1,0 +1,651 @@
+from __future__ import annotations
+#!/usr/bin/env python3
+
+# ── Liveness integration ──────────────────────────────────────
+try:
+    from nova_unlock.vision.liveness import LivenessDetector as _LivenessDetector
+    _liveness_detector = _LivenessDetector(required_blinks=1, challenge_secs=7)
+except Exception as _le:
+    _liveness_detector = None
+    import logging; logging.getLogger(__name__).warning("Liveness not available: %s", _le)
+
+"""
+nova_unlock/vision/face_recognizer.py
+══════════════════════════════════════════════════════════════
+Multi-User Face Login Manager
+
+Rules:
+  - 1 face profile per system user
+  - Face file stored as: data/faces/<username>.npy
+  - Any user can enroll/update their OWN face
+  - At boot: scan face → find matching user → auto-login
+══════════════════════════════════════════════════════════════
+"""
+
+import os
+import sys
+import json
+import time
+import logging
+import numpy as np
+from pathlib import Path
+
+try:
+    import pwd
+except ImportError:
+    pwd = None
+
+log = logging.getLogger("nova.face_recognizer")
+
+NOVA_DIR    = Path(__file__).parent.parent.parent
+THRESHOLD   = 0.5   # distance threshold (lower = stricter) - fallback default
+
+# ── Facelock attempt policy ──────────────────────────────────────────────
+# The lock screen / greeter / sudo must allow EXACTLY this many face scans
+# before falling back to the system password. It is the single source of truth
+# for the "5 attempts, no more no less" rule and is imported by every
+# recognition path (UI worker, lock daemon, greeter, PAM face_sudo).
+FACE_MAX_ATTEMPTS = 5
+
+
+def get_max_attempts() -> int:
+    """Max face-scan attempts per unlock session.
+
+    Reads ``[recognition] max_attempts`` from nova.conf (default 5) so the
+    policy is tunable in one place. Always returns the canonical 5 unless an
+    explicit positive value is configured.
+    """
+    try:
+        from nova_unlock.core.config_manager import NovaConfig
+        val = NovaConfig().max_attempts
+        if isinstance(val, int) and val > 0:
+            return val
+    except Exception:
+        pass
+    return FACE_MAX_ATTEMPTS
+
+
+# ── Canonical data / faces directory ─────────────────────────
+# Enrollment and recognition MUST agree on where face profiles live.
+# Resolution order (identical for every entrypoint: greeter, daemon, enroll):
+#   1. $NOVA_FACES_DIR / $NOVA_DATA_DIR   (exported by the launch scripts)
+#   2. [paths] faces_dir / data_dir       in nova.conf (if present)
+#   3. Canonical persistent dir           /var/lib/novaunlock[/faces]
+# This guarantees the installed app finds the SAME faces the enrollment wrote,
+# regardless of the script's own location (cwd) or dev-vs-/opt layout — which is
+# exactly why "only the UI shows, scan/login doesn't work" happened before.
+def _read_cfg_paths():
+    try:
+        from nova_unlock.core.config_manager import NovaConfig
+        parser = getattr(NovaConfig(), "_parser", None)
+        if parser is not None and parser.has_section("paths"):
+            dd = parser.get("paths", "data_dir", fallback="").strip()
+            fd = parser.get("paths", "faces_dir", fallback="").strip()
+            return (dd or None), (fd or None)
+    except Exception:
+        pass
+    return None, None
+
+
+def get_data_dir() -> Path:
+    env = os.environ.get("NOVA_DATA_DIR", "").strip()
+    if env:
+        p = Path(env); p.mkdir(parents=True, exist_ok=True); return p
+    _data_dir, _faces_dir = _read_cfg_paths()
+    if _data_dir:
+        p = Path(_data_dir); p.mkdir(parents=True, exist_ok=True); return p
+    return Path("/var/lib/novaunlock")
+
+
+def get_faces_dir() -> Path:
+    env = os.environ.get("NOVA_FACES_DIR", "").strip()
+    if env:
+        p = Path(env); p.mkdir(parents=True, exist_ok=True); return p
+    _data_dir, _faces_dir = _read_cfg_paths()
+    if _faces_dir:
+        p = Path(_faces_dir); p.mkdir(parents=True, exist_ok=True); return p
+    p = Path("/var/lib/novaunlock/faces")
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def get_meta_file() -> Path:
+    return get_faces_dir() / "users_meta.json"
+
+
+def get_pam_cache_file() -> Path:
+    """
+    Canonical short-lived PAM face-match cache.
+
+    The installed PAM auth script reads a FIXED path
+    (``/var/lib/novaunlock/pam_cache.json``); the in-session unlock UI must write
+    to the SAME path or the lock screen never unlocks after a match. Resolution:
+      1. $NOVA_PAM_CACHE                          (exported by launch scripts)
+      2. /var/lib/novaunlock/pam_cache.json       (if the dir is writable)
+      3. /tmp/nova_unlock_pam_cache.json          (dev fallback, no PAM)
+    """
+    env = os.environ.get("NOVA_PAM_CACHE", "").strip()
+    if env:
+        return Path(env)
+    canonical = Path("/var/lib/novaunlock/pam_cache.json")
+    try:
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        if os.access(canonical.parent, os.W_OK):
+            return canonical
+    except Exception:
+        pass
+    return Path("/tmp/nova_unlock_pam_cache.json")
+
+
+FACES_DIR = get_faces_dir()
+META_FILE = get_meta_file()
+
+
+def _machine_name() -> str:
+    if hasattr(os, "uname"):
+        return os.uname().nodename
+    return os.environ.get("COMPUTERNAME", "")
+
+
+def get_threshold() -> float:
+    """Load threshold from config/nova.conf, fallback to hardcoded default."""
+    try:
+        from nova_unlock.core.config_manager import NovaConfig
+        return NovaConfig().threshold
+    except Exception:
+        return THRESHOLD
+
+
+def save_multi_angle_face(username: str, encodings: list,
+                          angle_count: int = 5) -> bool:
+    """
+    Save averaged multi-angle face embeddings for a user.
+    Called by the GUI enrollment wizard after capturing all angles.
+
+    Args:
+        username:    Linux system username
+        encodings:   List of numpy face encodings from all angles
+        angle_count: Number of distinct angles captured
+
+    Returns: True on success
+    """
+    if len(encodings) < 5:
+        log.error(f"Too few encodings ({len(encodings)}) for multi-angle save")
+        return False
+
+    avg_enc = np.mean(encodings, axis=0)
+    success = save_face(username, avg_enc)
+
+    if success:
+        meta = load_meta()
+        meta[username] = {
+            "enrolled_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "machine":     _machine_name(),
+            "angles":      angle_count,
+            "samples":     len(encodings),
+            "method":      "multi_angle",
+        }
+        save_meta(meta)
+        log.info(f"Multi-angle face saved for '{username}': "
+                 f"{len(encodings)} samples across {angle_count} angles")
+
+    return success
+
+
+# ══════════════════════════════════════════════════════════════
+# Face Storage — 1 per user
+# ══════════════════════════════════════════════════════════════
+
+def get_system_users() -> list[dict]:
+    """Get all real system users (have /home directory)."""
+    if pwd is None:
+        username = os.environ.get("USERNAME") or os.environ.get("USER") or "user"
+        return [{
+            "username": username,
+            "uid":      1000,
+            "home":     os.environ.get("USERPROFILE") or str(Path.home()),
+            "fullname": username,
+        }]
+
+    users = []
+    for p in pwd.getpwall():
+        if (p.pw_dir.startswith("/home") and
+                os.path.exists(p.pw_dir) and
+                p.pw_uid >= 1000):
+            users.append({
+                "username": p.pw_name,
+                "uid":      p.pw_uid,
+                "home":     p.pw_dir,
+                "fullname": p.pw_gecos.split(",")[0] if p.pw_gecos else p.pw_name,
+            })
+    return users
+
+
+def get_face_path(username: str) -> Path:
+    """Get face file path for a user."""
+    FACES_DIR.mkdir(parents=True, exist_ok=True)
+    return FACES_DIR / f"{username}.npy"
+
+
+def is_enrolled(username: str) -> bool:
+    """Check if user has a face enrolled."""
+    return get_face_path(username).exists()
+
+
+def get_enrolled_users() -> list[str]:
+    """Get list of usernames with enrolled faces."""
+    FACES_DIR.mkdir(parents=True, exist_ok=True)
+    enrolled = []
+    for f in FACES_DIR.glob("*.npy"):
+        if f.stem != "meta":  # skip old meta files
+            enrolled.append(f.stem)
+    return enrolled
+
+
+def save_face(username: str, embedding: np.ndarray) -> bool:
+    """Save face embedding for a user."""
+    try:
+        FACES_DIR.mkdir(parents=True, exist_ok=True)
+        path = get_face_path(username)
+        np.save(str(path), embedding)
+
+        # Update metadata
+        meta = load_meta()
+        meta[username] = {
+            "enrolled_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "machine":     _machine_name(),
+        }
+        save_meta(meta)
+        log.info(f"Face saved for user: {username}")
+        return True
+    except Exception as e:
+        log.error(f"Failed to save face for {username}: {e}")
+        return False
+
+
+def load_face(username: str) -> np.ndarray | None:
+    """Load face embedding for a user."""
+    path = get_face_path(username)
+    if not path.exists():
+        return None
+    try:
+        return np.load(str(path))
+    except Exception as e:
+        log.error(f"Failed to load face for {username}: {e}")
+        return None
+
+
+def delete_face(username: str) -> bool:
+    """Delete face enrollment for a user."""
+    path = get_face_path(username)
+    if path.exists():
+        path.unlink()
+        # Update metadata
+        meta = load_meta()
+        meta.pop(username, None)
+        save_meta(meta)
+        log.info(f"Face deleted for user: {username}")
+        return True
+    return False
+
+
+def load_meta() -> dict:
+    """Load enrollment metadata."""
+    try:
+        if META_FILE.exists():
+            return json.loads(META_FILE.read_text())
+    except Exception:
+        pass
+    return {}
+
+
+def save_meta(meta: dict):
+    """Save enrollment metadata."""
+    try:
+        META_FILE.write_text(json.dumps(meta, indent=2))
+    except Exception as e:
+        log.warning(f"Could not save meta: {e}")
+
+
+# ══════════════════════════════════════════════════════════════
+# Face Enrollment
+# ══════════════════════════════════════════════════════════════
+
+def enroll_user_face(username: str,
+                     num_frames: int = 40,
+                     verbose: bool = True) -> bool:
+    """
+    Enroll face for a specific system user.
+    Captures from camera, saves as data/faces/<username>.npy
+    """
+    try:
+        import cv2
+        import face_recognition
+    except ImportError as e:
+        print(f"❌ Missing: {e} — run: pip install face-recognition")
+        return False
+
+    # Verify user exists
+    system_users = [u["username"] for u in get_system_users()]
+    if username not in system_users:
+        print(f"❌ User '{username}' not found on this system")
+        print(f"   Available users: {system_users}")
+        return False
+
+    if verbose:
+        print(f"\n  Enrolling face for system user: {username}")
+        if is_enrolled(username):
+            print(f"  ⚠️  Replacing existing face for {username}")
+
+    # Open camera
+    cap = _open_camera(verbose)
+    if cap is None:
+        return False
+
+    if verbose:
+        print(f"\n  📷 Instructions:")
+        print("  • Look directly at the camera")
+        print("  • Good lighting, face clearly visible")
+        print("  • Stay still during capture\n")
+        for i in range(3, 0, -1):
+            print(f"  Starting in {i}...", end='\r')
+            time.sleep(1)
+        print(f"  Capturing {num_frames} frames...      ")
+
+    # Warmup
+    for _ in range(10):
+        cap.read()
+
+    # Capture
+    encodings  = []
+    attempts   = 0
+    max_tries  = num_frames * 3
+
+    while len(encodings) < num_frames and attempts < max_tries:
+        ret, frame = cap.read()
+        if not ret:
+            attempts += 1
+            continue
+        attempts += 1
+
+        try:
+            rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            locs  = face_recognition.face_locations(rgb, model="hog")
+            if locs:
+                encs = face_recognition.face_encodings(rgb, locs)
+                if encs:
+                    encodings.append(encs[0])
+                    if verbose:
+                        pct = len(encodings) / num_frames
+                        bar = int(pct * 30)
+                        print(f"  [{'█'*bar}{'░'*(30-bar)}] "
+                              f"{len(encodings)}/{num_frames}", end='\r')
+            else:
+                if verbose:
+                    print(f"  ⚠️  No face detected — look at camera      ", end='\r')
+        except Exception:
+            pass
+        time.sleep(0.05)
+
+    cap.release()
+    print()
+
+    if len(encodings) < 5:
+        print(f"  ❌ Only {len(encodings)} frames detected — try better lighting")
+        return False
+
+    # Average all encodings → single robust embedding
+    avg_enc = np.mean(encodings, axis=0)
+    success = save_face(username, avg_enc)
+
+    if success and verbose:
+        print(f"  ✅ Face enrolled for '{username}' ({len(encodings)} frames)")
+
+    return success
+
+
+# ══════════════════════════════════════════════════════════════
+# Face Identification — Boot Login
+# ══════════════════════════════════════════════════════════════
+
+def identify_user(timeout: int = 30,
+                  max_attempts: int = 5,
+                  log_file: str | None = None,
+                  use_liveness: bool = False) -> str | None:
+    """
+    Capture face from camera and identify which system user it is.
+    Returns username string if matched, None if no match.
+    Used at boot by LightDM hook.
+
+    Args:
+        timeout:       Max seconds to attempt identification
+        max_attempts:  Max recognition attempts
+        log_file:      Optional log file path
+        use_liveness:  Enable anti-spoofing liveness check
+    """
+    # Setup logging
+    if log_file:
+        fh = logging.FileHandler(log_file)
+        fh.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)-7s : %(message)s"
+        ))
+        log.addHandler(fh)
+        log.setLevel(logging.DEBUG)
+
+    log.info("Face identification starting")
+
+    # Load threshold from config
+    threshold = get_threshold()
+    log.info(f"Using threshold: {threshold}")
+
+    try:
+        import cv2
+        import face_recognition
+    except ImportError as e:
+        log.error(f"Missing dependency: {e}")
+        return None
+
+    # Initialize liveness checker if enabled
+    liveness_checker = None
+    if use_liveness:
+        try:
+            from nova_unlock.core.config_manager import NovaConfig
+            from nova_unlock.vision.liveness import LivenessChecker
+            cfg = NovaConfig()
+            if cfg.liveness_check or cfg.anti_spoof:
+                liveness_checker = LivenessChecker(
+                    min_blinks=cfg.min_blinks,
+                    window=cfg.liveness_window,
+                    check_texture=cfg.anti_spoof,
+                )
+                log.info("Liveness checker initialized")
+        except Exception as e:
+            log.warning(f"Could not initialize liveness: {e}")
+
+    # Load ALL enrolled user profiles
+    profiles = {}
+    for username in get_enrolled_users():
+        emb = load_face(username)
+        if emb is not None:
+            profiles[username] = emb
+            log.info(f"Loaded profile: {username}")
+
+    if not profiles:
+        log.error("No faces enrolled — cannot identify")
+        return None
+
+    log.info(f"Enrolled users: {list(profiles.keys())}")
+
+    # Open camera
+    cap = _open_camera(verbose=False)
+    if cap is None:
+        log.error("No camera found")
+        return None
+
+    # Warmup
+    for _ in range(10):
+        cap.read()
+
+    start     = time.time()
+    matched   = None
+
+    # ── Wait for UI animation to be ready (non-blocking) ──
+    waited = 0
+    while waited < 1.2:
+        time.sleep(0.05)
+        waited += 0.05
+
+    FRAMES_NEEDED  = 4
+    FRAME_INTERVAL = 0.08
+
+    for attempt in range(1, max_attempts + 1):
+        if time.time() - start > timeout:
+            log.warning("Timeout reached")
+            break
+
+        log.info(f"--- Attempt {attempt}/{max_attempts} ---")
+
+        # Collect embeddings (non-blocking grab)
+        embeddings   = []
+        frames_tried = 0
+
+        while len(embeddings) < FRAMES_NEEDED and frames_tried < 12:
+            cap.grab()
+            ret, frame = cap.retrieve()
+            frames_tried += 1
+
+            if not ret or frame is None:
+                time.sleep(0.03)
+                continue
+            try:
+                # Small frame for speed
+                small = cv2.resize(frame, (160, 120))
+                rgb   = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+                locs  = face_recognition.face_locations(
+                    rgb, model="hog"
+                )
+                if locs:
+                    sx = frame.shape[1] / 160
+                    sy = frame.shape[0] / 120
+                    scaled = [
+                        (int(t*sy), int(r*sx),
+                         int(b*sy), int(l*sx))
+                        for (t, r, b, l) in locs
+                    ]
+                    rgb_full = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    encs = face_recognition.face_encodings(
+                        rgb_full, scaled
+                    )
+                    if encs:
+                        embeddings.append(encs[0])
+            except Exception as e:
+                log.debug(f"Frame error: {e}")
+            time.sleep(FRAME_INTERVAL)
+
+        if not embeddings:
+            log.warning("No face detected")
+            # Non-blocking wait between attempts
+            for _ in range(20):
+                time.sleep(0.08)
+            continue
+
+        # Average embeddings
+        live_enc  = np.mean(embeddings, axis=0)
+
+        # Compare against ALL users
+        best_user = None
+        best_dist = float("inf")
+
+        for username, stored_enc in profiles.items():
+            dists = face_recognition.face_distance([stored_enc], live_enc)
+            dist  = float(dists[0])
+            log.debug(f"  {username} → dist={dist:.4f}")
+            if dist < best_dist:
+                best_dist = dist
+                best_user = username
+
+        log.info(f"Best: {best_user} dist={best_dist:.4f} "
+                 f"(threshold={threshold})")
+
+        if best_dist <= threshold:
+            # Liveness check before accepting match
+            if liveness_checker is not None:
+                liveness_result = liveness_checker.check_frame(
+                    frame, locs[0] if locs else None
+                )
+                if liveness_result == "spoof":
+                    log.warning("Spoof detected — rejecting match")
+                    continue
+                # "pass", "pending", "unavailable" all allow through
+
+            log.info(f"✅ IDENTIFIED as '{best_user}'")
+            matched = best_user
+            break
+        else:
+            log.info(f"❌ No confident match")
+            for _ in range(20):
+                time.sleep(0.08)
+
+    cap.release()
+
+    if matched:
+        log.info(f"✅ Login user: {matched}")
+    else:
+        log.warning("❌ Could not identify user — fallback to greeter")
+
+    return matched
+
+
+# ══════════════════════════════════════════════════════════════
+# Helpers
+# ══════════════════════════════════════════════════════════════
+
+def _open_camera(verbose: bool = True) -> "cv2.VideoCapture | None":
+    """Find and open first working camera."""
+    import cv2
+    try:
+        from nova_unlock.vision.camera_detector import detect_camera
+        idx = detect_camera()
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            if verbose:
+                print(f"  ✓ Using camera {idx}")
+            return cap
+    except Exception:
+        pass
+
+    for idx in range(10):
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                if verbose:
+                    print(f"  ✓ Using camera {idx}")
+                return cap
+        cap.release()
+
+    if verbose:
+        print("  ❌ No camera found")
+    return None
+
+
+def print_status():
+    """Print enrollment status for all system users."""
+    print("\n╔══════════════════════════════════════════╗")
+    print("║     NovaUnlock Face Login — User Status  ║")
+    print("╚══════════════════════════════════════════╝\n")
+
+    system_users = get_system_users()
+    meta         = load_meta()
+
+    print(f"  {'Username':<15} {'Face Enrolled':<15} {'Enrolled At'}")
+    print(f"  {'─'*15} {'─'*15} {'─'*20}")
+
+    for u in system_users:
+        uname    = u["username"]
+        enrolled = is_enrolled(uname)
+        status   = "✅ Yes" if enrolled else "❌ No"
+        when     = meta.get(uname, {}).get("enrolled_at", "—")
+        print(f"  {uname:<15} {status:<15} {when}")
+
+    print()

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════
-#  NovaUnlock Installer v2.014
+#  NovaUnlock Installer v2.112
 #  Distros:  Debian / Ubuntu / Kali | Fedora / RHEL | Arch | openSUSE
 #  Desktops: XFCE | GNOME | KDE | MATE | Cinnamon
 #  DMs:      LightDM | GDM | SDDM
@@ -85,7 +85,7 @@ PY
 
 echo
 echo -e "${BOLD}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║     NovaUnlock — Installer v2.014             ║${NC}"
+echo -e "${BOLD}║     NovaUnlock — Installer v2.112             ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
 
@@ -109,9 +109,9 @@ echo -e "  Project:  ${BOLD}$NOVA_DIR${NC}"
 echo -e "  Log:      ${BOLD}$INSTALL_LOG${NC}"
 echo
 
-ENROLL_GUI_SCRIPT="$(nova_py_entry scripts/enroll_gui.py)"
-GREETER_SCRIPT_PATH="$(nova_py_entry scripts/face_login_greeter.py)"
-DAEMON_SCRIPT_PATH="$(nova_py_entry scripts/face_unlock_daemon.py)"
+ENROLL_WIZARD_SCRIPT="$(nova_py_entry nova_unlock/ui/enrollment_wizard.py)"
+GREETER_SCRIPT_PATH="$(nova_py_entry scripts/face_login_greeter.pyc)"
+DAEMON_SCRIPT_PATH="$(nova_py_entry scripts/face_unlock_daemon.pyc)"
 DEMO_SCRIPT_PATH="$(nova_py_entry nova_unlock/ui/face_id_screen.py)"
 
 # ═══════════════════════════════════════════════════════════════
@@ -176,6 +176,8 @@ if [ "$SESSION_TYPE" = "wayland" ]; then
     info "NovaUnlock runs on Wayland via XWayland (the Qt GUI uses the xcb platform"
     info "plugin inside XWayland), so your Wayland session is left ENABLED — no"
     info "display-manager changes are required."
+    # This Wayland compatibility path does NOT touch PAM; PAM is configured
+    # later by the explicit authentication setup step.
 
     # Ensure XWayland is present so the X11/Qt lock-screen GUI and camera preview
     # get a DISPLAY under a Wayland session.
@@ -186,6 +188,9 @@ if [ "$SESSION_TYPE" = "wayland" ]; then
         zypper) zypper install -y xwayland >>"$INSTALL_LOG" 2>&1 || true ;;
     esac
 
+    # Kept as an explicit capability marker for installer diagnostics and
+    # downstream release checks; Wayland remains enabled.
+    GDM_WAYLAND_ON=1
     NOVA_WAYLAND_OK=1
     info ""
 fi
@@ -798,7 +803,7 @@ GDMHOOK
 
     # Replace placeholders with real paths
     sed -i "s|NOVA_VENV_PYTHON_PLACEHOLDER|$VENV/bin/python3|g" /usr/local/bin/nova_gdm_greeter_hook.sh
-    sed -i "s|NOVA_GREETER_SCRIPT_PLACEHOLDER|$NOVA_DIR/scripts/face_login_greeter.py|g" /usr/local/bin/nova_gdm_greeter_hook.sh
+    sed -i "s|NOVA_GREETER_SCRIPT_PLACEHOLDER|$NOVA_DIR/scripts/face_login_greeter.pyc|g" /usr/local/bin/nova_gdm_greeter_hook.sh
     chmod +x /usr/local/bin/nova_gdm_greeter_hook.sh
 
     # Hook via PostLogin (runs after greeter, before login complete)
@@ -1042,14 +1047,14 @@ run_monitor() {
 
         if echo "\$LINE" | grep -q "boolean true"; then
             echo "\$(date) LOCKED" >> "\$WLOG"
-            pkill -f "face_unlock_daemon.py" 2>/dev/null
+            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
             sleep 0.8
             "\$VENV_PY" "\$DAEMON" >> "\$FLOG" 2>&1 &
 
         elif echo "\$LINE" | grep -q "boolean false"; then
             echo "\$(date) UNLOCKED" >> "\$WLOG"
-            pkill -f "face_unlock_daemon.py" 2>/dev/null
+            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
         fi
     done
@@ -1111,7 +1116,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$VENV/bin/python3 $NOVA_DIR/scripts/face_unlock_daemon.py --guard
+ExecStart=$VENV/bin/python3 $NOVA_DIR/scripts/face_unlock_daemon.pyc --guard
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:0
@@ -1142,6 +1147,60 @@ SUEOF
 chmod 440 /etc/sudoers.d/nova-unlock
 ok "Sudoers configured"
 
+# System-level enable/disable switch.  The old watcher was a user service, so
+# `sudo systemctl enable nova-facelock` could never control boot greeter or PAM
+# behavior.  This unit is intentionally a small lifecycle switch; the per-user
+# watcher remains responsible for in-session lock notifications.
+cat > /usr/local/bin/nova_facelock_service.sh << 'FACEOFSERVICE'
+#!/bin/bash
+set -eu
+FLAG=/etc/novaunlock/facelock.enabled
+LDM_CONF=/etc/lightdm/lightdm.conf.d/50-nova-unlock.conf
+case "${1:-}" in
+  start)
+    install -d -m 0755 /etc/novaunlock
+    install -m 0600 /dev/null "$FLAG"
+    if command -v lightdm >/dev/null 2>&1 && [ -x /usr/local/bin/nova_unlock_greeter_hook.sh ]; then
+      install -d -m 0755 /etc/lightdm/lightdm.conf.d
+      cat > "$LDM_CONF" << 'LDMEOF'
+[Seat:*]
+greeter-setup-script=/usr/local/bin/nova_unlock_greeter_hook.sh
+session-setup-script=/usr/local/bin/nova_unlock_session_cleanup.sh
+greeter-show-manual-login=true
+greeter-hide-users=true
+LDMEOF
+      chmod 0644 "$LDM_CONF"
+    fi
+    ;;
+  stop)
+    rm -f "$FLAG" "$LDM_CONF" /etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf
+    rm -f /tmp/nova_unlock_pam_cache.json /var/lib/novaunlock/pam_cache.json
+    pkill -f face_login_greeter 2>/dev/null || true
+    ;;
+  *) echo "usage: $0 {start|stop}" >&2; exit 2 ;;
+esac
+FACEOFSERVICE
+chmod 755 /usr/local/bin/nova_facelock_service.sh
+
+cat > /etc/systemd/system/nova-facelock.service << 'FACEUNIT'
+[Unit]
+Description=NovaUnlock FaceLock authentication and greeter integration
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/nova_facelock_service.sh start
+ExecStop=/usr/local/bin/nova_facelock_service.sh stop
+
+[Install]
+WantedBy=multi-user.target
+FACEUNIT
+systemctl daemon-reload
+systemctl enable --now nova-facelock.service || warn "Could not start nova-facelock.service; enable it after installation"
+ok "FaceLock system service registered (nova-facelock)"
+
 chown -R "$REAL_USER:$REAL_GROUP" "$NOVA_DIR"
 
 cat > "$NOVA_DIR/uninstall.sh" << 'UNEOF'
@@ -1153,10 +1212,15 @@ REAL_USER="${SUDO_USER:-$USER}"
 [ "$REAL_USER" = "root" ] && REAL_USER=$(logname 2>/dev/null || echo "")
 REAL_HOME="/home/$REAL_USER"
 
+systemctl disable --now nova-facelock.service 2>/dev/null || true
+rm -f /etc/systemd/system/nova-facelock.service /etc/novaunlock/facelock.enabled
+systemctl daemon-reload 2>/dev/null || true
+
 rm -f \
     /usr/local/bin/nova_xflock4_lock.sh \
     /usr/local/bin/nova_unlock_greeter_hook.sh \
     /usr/local/bin/nova_unlock_greeter_helper.sh \
+    /usr/local/bin/nova_facelock_service.sh \
     /usr/local/bin/nova_unlock_session_cleanup.sh \
     /usr/local/bin/nova_unlock_watcher.sh \
     /usr/local/bin/nova_pam_auth.sh \
@@ -1239,7 +1303,7 @@ echo
 echo "  Next steps:"
 echo "    1. Enroll your face:"
 echo "       cd $NOVA_DIR && source .venv/bin/activate"
-echo "       python3 $ENROLL_GUI_SCRIPT"
+echo "       python3 $ENROLL_WIZARD_SCRIPT --user $REAL_USER"
 echo
 echo "    2. Test demo UI:"
 echo "       $VENV/bin/python3 $DEMO_SCRIPT_PATH --demo"

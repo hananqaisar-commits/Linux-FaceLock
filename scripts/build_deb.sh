@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# build_deb.sh — Build NovaUnlock-v${VERSION:-5.4}-Debian.deb
+# build_deb.sh — Build NovaUnlock-v${VERSION:-2.21}-Debian.deb
 # Pyc compiled with host python3.11 (matches Debian 12 / Kali 3.11).
 #
 set -euo pipefail
 
-VERSION="${VERSION:-2.014}"
+VERSION="2.21"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 WORK="$(mktemp -d)"
 ROOT="$WORK/root"
 OUT="$RELEASE/NovaUnlock-v$VERSION-Debian.deb"
 
-PY_BIN="python3.11"
+PY_BIN="${PY_BIN:-python3}"
 PKG_ARCH="amd64"
 
 echo "==> Building Debian package in $WORK"
@@ -21,7 +21,10 @@ echo "==> Building Debian package in $WORK"
 bash "$REPO/scripts/build_pkg_tree.sh" "$PY_BIN" "$ROOT"
 
 # 2) Static system integration files (package-owned → clean removal)
-mkdir -p "$ROOT/usr/lib/systemd/user" "$ROOT/etc/xdg/autostart"
+mkdir -p "$ROOT/usr/lib/systemd/user" "$ROOT/usr/lib/systemd/system" "$ROOT/etc/xdg/autostart"
+
+install -m 0644 "$REPO/systemd/nova-facelock.service" \
+    "$ROOT/usr/lib/systemd/system/nova-facelock.service"
 
 cat > "$ROOT/usr/lib/systemd/user/nova-unlock-watcher.service" << 'UNIT'
 [Unit]
@@ -135,7 +138,15 @@ file-in-etc-not-marked-as-conffile
 LO
 
 # 4) Build + lint
-fakeroot dpkg-deb --build "$ROOT" "$OUT"
+# --root-owner-group makes a reproducible package without fakeroot. Use zstd
+# instead of the host xz path, which has produced corrupt control archives on
+# some Kali builds with very large offline wheel bundles.
+dpkg-deb --root-owner-group -Zzstd --build "$ROOT" "$OUT"
+# A successful exit is not sufficient: validate both the control and data
+# archives before a checksum can be generated or the package released.
+dpkg-deb --info "$OUT" >/dev/null
+dpkg-deb --contents "$OUT" >/dev/null
+sha256sum "$OUT" > "$OUT.sha256"
 echo "==> Built: $OUT ($(stat -c %s "$OUT") bytes)"
 echo "==> lintian (dir-or-file-in-opt + package-installs-python-bytecode are"
 echo "    expected/benign for a closed-source third-party /opt package):"

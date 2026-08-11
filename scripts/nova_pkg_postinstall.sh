@@ -16,8 +16,8 @@ ACTION="${1:-configure}"
 
 NOVA_DIR=/opt/novaunlock
 VENV_PY=/usr/bin/python3
-DAEMON="$NOVA_DIR/scripts/face_unlock_daemon.pyc"
-GREETER="$NOVA_DIR/scripts/face_login_greeter.pyc"
+DAEMON="$NOVA_DIR/scripts/face_unlock_daemon.pycc"
+GREETER="$NOVA_DIR/scripts/face_login_greeter.pycc"
 PAM_SCRIPT_BIN=/usr/local/bin/nova_pam_auth.sh
 CACHE_FILE=/var/lib/novaunlock/pam_cache.json
 LOG_DIR=/var/log/novaunlock
@@ -81,7 +81,7 @@ detect_env() {
     log "pkg=$PKG_MGR de=$DE dm=$DM user=$REAL_USER"
 }
 
-# ── Ensure heavy runtime deps (dlib / face_recognition are pip-only) ───
+# ── Ensure runtime deps (ML stack + public-key license verifier) ───────
 # These are not available as OS packages on Debian / Kali / Fedora / Arch, so
 # they are pip-installed into the SYSTEM site-packages (visible to the root / user
 # daemon that actually runs them). This is best-effort and MUST NOT abort the
@@ -93,33 +93,33 @@ ensure_runtime_deps() {
 
     local pyver
     pyver=$("$py" -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null) \
-        || { warn "Cannot determine Python version — cannot install bundled wheels."; record_deps_status 1 "dlib face_recognition face_recognition_models"; return 1; }
+        || { warn "Cannot determine Python version — cannot install bundled wheels."; record_deps_status 1 "dlib face_recognition face_recognition_models cryptography"; return 1; }
 
     local WHEELS_DIR="$NOVA_DIR/wheels/$pyver"
     if [ ! -d "$WHEELS_DIR" ] || [ -z "$(ls -A "$WHEELS_DIR" 2>/dev/null)" ]; then
         warn "Bundled wheels for $pyver are MISSING ($WHEELS_DIR)."
         warn "NovaUnlock cannot install its ML dependencies offline. Face unlock will NOT work."
         warn "This is a packaging defect — please report it. Remediation: reinstall a complete package."
-        record_deps_status 1 "dlib face_recognition face_recognition_models"
+        record_deps_status 1 "dlib face_recognition face_recognition_models cryptography"
         return 1
     fi
 
-    log "Installing bundled ML dependencies for $pyver (offline) from $WHEELS_DIR ..."
+    log "Installing bundled runtime dependencies for $pyver (offline) from $WHEELS_DIR ..."
     # --find-links points pip at the bundled wheelhouse; --no-index disables PyPI.
     # Without --find-links, --no-index leaves pip with NO source and the install
     # fails with "No matching distribution" (the dlib import failure in testing).
     # Named packages (not *.whl) let pip pick the version-compatible wheel and
     # ignore any stray cross-version wheels present in the same dir.
     if "$py" -m pip install --no-index --find-links "$WHEELS_DIR" --break-system-packages \
-            dlib face_recognition face_recognition_models 2>&1 | sed 's/^/[NovaUnlock] /'; then
-        ok "Bundled ML dependencies installed ($pyver)"
+            dlib face_recognition face_recognition_models cryptography 2>&1 | sed 's/^/[NovaUnlock] /'; then
+        ok "Bundled runtime dependencies installed ($pyver)"
         record_deps_status 0
         return 0
     fi
 
     warn "Failed to install bundled wheels for $pyver from $WHEELS_DIR."
     warn "Face unlock will NOT work until this is resolved."
-    record_deps_status 1 "dlib face_recognition face_recognition_models"
+    record_deps_status 1 "dlib face_recognition face_recognition_models cryptography"
     return 1
 }
 
@@ -239,7 +239,7 @@ configure_pam_lockscreen() {
     if [ -f "$pam_file" ]; then
         TMP=$(mktemp)
         if [ "$method" = "pam_script" ]; then
-            printf '%s\n' "auth    sufficient    pam_script.so" > "$TMP"
+            printf '%s\n' "auth    sufficient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN" > "$TMP"
         else
             printf '%s\n' "auth    [success=ok default=ignore]  pam_exec.so quiet $PAM_SCRIPT_BIN" > "$TMP"
         fi
@@ -250,12 +250,13 @@ configure_pam_lockscreen() {
 }
 
 configure_pam_sudo() {
-    local pam_file="$1" label="$2" method="$3"
-    [ -f "$pam_file" ] && sed -i '/nova_pam_auth\|pam_script\.so\|pam_exec\.so.*nova/d' "$pam_file" 2>/dev/null
+    local pam_file="$1" label="$2"
+    [ -f "$pam_file" ] && sed -i "/nova_pam_auth\|pam_script\.so\|pam_exec\.so.*nova/d" "$pam_file"
     if [ -f "$pam_file" ]; then
-        TMP=$(mktemp)
-        if [ "$method" = "pam_script" ]; then
-            printf '%s\n' "auth    sufficient    pam_script.so" > "$TMP"
+        printf "auth    sufficient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN\n" > "$TMP"
+        cat "$pam_file" >> "$TMP"
+        mv "$TMP" "$pam_file"
+        ok "PAM privilege: $label"cient    pam_exec.so quiet seteuid $PAM_SCRIPT_BIN" > "$TMP"
         else
             printf '%s\n' "auth    [success=ok default=ignore]  pam_exec.so quiet $PAM_SCRIPT_BIN" > "$TMP"
         fi
@@ -347,7 +348,7 @@ show_login_hello
 WLOG=/var/log/novaunlock/watcher.log
 FLOG=/var/log/novaunlock/face_auth.log
 VENV_PY=/usr/bin/python3
-DAEMON=/opt/novaunlock/scripts/face_unlock_daemon.pyc
+DAEMON=/opt/novaunlock/scripts/face_unlock_daemon.pycc
 HELLO_MARKER=/var/lib/novaunlock/hello_shown
 
 DBUS_IFACE="org.xfce.ScreenSaver"
@@ -365,7 +366,7 @@ esac
 # the laptop lid.
 start_unlock_session() {
     echo "$(date) UNLOCK SESSION START" >> "$WLOG"
-    pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+    pkill -f "face_unlock_daemon.pycc" 2>/dev/null
     rm -f /tmp/nova_unlock_face.lock
     rm -f "$HELLO_MARKER"
     sleep 0.8
@@ -385,14 +386,14 @@ run_monitor() {
     dbus-monitor --session "type='signal',interface='$DBUS_IFACE',member='ActiveChanged'" 2>/dev/null | while read LINE; do
         if echo "$LINE" | grep -q "boolean true"; then
             echo "$(date) LOCKED" >> "$WLOG"
-            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+            pkill -f "face_unlock_daemon.pycc" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
             rm -f "$HELLO_MARKER"
             sleep 0.8
             "$VENV_PY" "$DAEMON" >> "$FLOG" 2>&1 &
         elif echo "$LINE" | grep -q "boolean false"; then
             echo "$(date) UNLOCKED" >> "$WLOG"
-            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+            pkill -f "face_unlock_daemon.pycc" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
         fi
     done
@@ -426,11 +427,47 @@ WATCHER_EOF
 
 setup_service() {
     write_watcher
-    # The watcher script + systemd unit + autostart desktop are shipped by the
-    # native package; here we only enable the user service (best effort — needs
-    # an active session at first login).
-    systemctl --user enable nova-unlock-watcher.service 2>/dev/null || true
-    ok "Guard service enabled"
+    cat > /usr/local/bin/nova_facelock_service.sh << 'SERVICE'
+#!/bin/bash
+# Runtime switch for the package-owned nova-facelock.service.  PAM reads this
+# flag and falls through to the normal password modules when FaceLock is off.
+set -eu
+FLAG=/etc/novaunlock/facelock.enabled
+LIGHTDM_CONF=/etc/lightdm/lightdm.conf.d/50-nova-unlock.conf
+
+enable_facelock() {
+    install -d -m 0755 /etc/novaunlock
+    install -m 0600 /dev/null "$FLAG"
+    if command -v lightdm >/dev/null 2>&1 && [ -x /usr/local/bin/nova_unlock_greeter_hook.sh ]; then
+        install -d -m 0755 /etc/lightdm/lightdm.conf.d
+        cat > "$LIGHTDM_CONF" << 'LDMEOF'
+[Seat:*]
+greeter-setup-script=/usr/local/bin/nova_unlock_greeter_hook.sh
+session-setup-script=/usr/local/bin/nova_unlock_session_cleanup.sh
+greeter-show-manual-login=true
+greeter-hide-users=true
+LDMEOF
+        chmod 0644 "$LIGHTDM_CONF"
+    fi
+}
+
+disable_facelock() {
+    rm -f "$FLAG" "$LIGHTDM_CONF" /etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf
+    rm -f /var/lib/novaunlock/pam_cache.json /tmp/nova_unlock_greeter_result
+    pkill -f face_login_greeter 2>/dev/null || true
+}
+
+case "${1:-}" in
+    start) enable_facelock ;;
+    stop)  disable_facelock ;;
+    *) echo "usage: $0 {start|stop}" >&2; exit 2 ;;
+esac
+SERVICE
+    chmod 755 /usr/local/bin/nova_facelock_service.sh
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable --now nova-facelock.service 2>/dev/null || \
+        warn "Could not enable nova-facelock.service now; run: sudo systemctl enable --now nova-facelock"
+    ok "FaceLock system service registered"
 }
 
 # ── LightDM greeter (login-screen face unlock) ────────────────────────
@@ -459,7 +496,7 @@ export DISPLAY="$DISP" XAUTHORITY="$XAUTH" XDG_RUNTIME_DIR=/tmp/runtime-nova-unl
 export NOVA_FACES_DIR="/var/lib/novaunlock/faces"
 mkdir -p /tmp/runtime-nova-unlock; chmod 700 /tmp/runtime-nova-unlock
 rm -f "$RESULT"
-nohup /usr/bin/python3 /opt/novaunlock/scripts/face_login_greeter.pyc >/tmp/nova_unlock_greeter_ui.out 2>&1 &
+nohup /usr/bin/python3 /opt/novaunlock/scripts/face_login_greeter.pycc >/tmp/nova_unlock_greeter_ui.out 2>&1 &
 UI_PID=$!
 MATCHED=""
 for i in $(seq 1 15); do
@@ -520,6 +557,7 @@ setup_gdm() {
     mkdir -p "$GDM_POSTLOGIN_DIR"
     cat > /usr/local/bin/nova_gdm_greeter_hook.sh << 'GDMHOOK'
 #!/bin/bash
+[ -f /etc/novaunlock/facelock.enabled ] || exit 0
 LOG=/tmp/nova_gdm_greeter.log
 RESULT=/tmp/nova_unlock_greeter_result
 CACHE=/var/lib/novaunlock/pam_cache.json
@@ -535,8 +573,8 @@ done
 [ ! -f "$XAUTH" ] && XAUTH=/var/lib/gdm/.Xauthority
 [ -f "$XAUTH" ] && export XAUTHORITY="$XAUTH"
 rm -f "$RESULT" "$CACHE"
-if [ -x /usr/bin/python3 ] && [ -f /opt/novaunlock/scripts/face_login_greeter.pyc ]; then
-    timeout 20 /usr/bin/python3 /opt/novaunlock/scripts/face_login_greeter.pyc >>/tmp/nova_gdm_greeter_ui.log 2>&1 &
+if [ -x /usr/bin/python3 ] && [ -f /opt/novaunlock/scripts/face_login_greeter.pycc ]; then
+    timeout 20 /usr/bin/python3 /opt/novaunlock/scripts/face_login_greeter.pycc >>/tmp/nova_gdm_greeter_ui.log 2>&1 &
     GUI_PID=$!
     for i in $(seq 1 15); do [ -f "$RESULT" ] && break; sleep 1; done
     kill "$GUI_PID" 2>/dev/null
@@ -574,12 +612,13 @@ remove_all() {
         /usr/local/bin/nova_unlock_greeter_helper.sh \
         /usr/local/bin/nova_unlock_session_cleanup.sh \
         /usr/local/bin/nova_xflock4_lock.sh \
-        /usr/local/bin/nova_gdm_greeter_hook.sh ; do
+        /usr/local/bin/nova_gdm_greeter_hook.sh \
+        /usr/local/bin/nova_facelock_service.sh ; do
         rm -f "$f"
     done
     rm -f /etc/lightdm/lightdm.conf.d/50-nova-unlock.conf \
           /etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf \
-          /var/lib/novaunlock/pam_cache.json /tmp/nova_*
+          /var/lib/novaunlock/pam_cache.json /etc/novaunlock/facelock.enabled /tmp/nova_*
     for f in /etc/pam.d/xfce4-screensaver /etc/pam.d/gnome-screensaver \
              /etc/pam.d/gdm-password /etc/pam.d/kde /etc/pam.d/sddm \
              /etc/pam.d/mate-screensaver /etc/pam.d/cinnamon-screensaver \
@@ -590,6 +629,7 @@ remove_all() {
     pkill -f nova_unlock_watcher 2>/dev/null || true
     pkill -f face_unlock_daemon 2>/dev/null || true
     systemctl --user disable nova-unlock-watcher.service 2>/dev/null || true
+    systemctl disable --now nova-facelock.service 2>/dev/null || true
     ok "NovaUnlock integration removed"
 }
 
@@ -614,9 +654,9 @@ case "$ACTION" in
         write_pam_auth_script
         configure_pam
         init_trial
-        setup_service
         setup_lightdm
         setup_gdm
+        setup_service
         ok "NovaUnlock integration complete"
         ;;
     remove)

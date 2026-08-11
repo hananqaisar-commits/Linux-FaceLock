@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-2.014}"
+VERSION="2.21"
 TAG="v$VERSION"
 TITLE="NovaUnlock v$VERSION"
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# build_rpm.sh — Build NovaUnlock-v${VERSION:-5.4}-Fedora.rpm
+# build_rpm.sh — Build NovaUnlock-v${VERSION:-2.21}-Fedora.rpm
 # Pyc compiled with CPython 3.12 (matches Fedora 39). Falls back to shipping
 # .py + %post compile if a 3.12 interpreter is unavailable.
 #
 set -euo pipefail
 
-VERSION="${VERSION:-2.014}"
+VERSION="2.21"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 OUT="$RELEASE/NovaUnlock-v$VERSION-Fedora.rpm"
@@ -32,9 +32,14 @@ else
     mkdir -p "$STAGE/opt/novaunlock"
     rsync -a --exclude '__pycache__' --exclude '*.pyc' --exclude 'tests' \
         "$REPO/nova_unlock/" "$STAGE/opt/novaunlock/nova_unlock/"
-    rm -f "$STAGE/opt/novaunlock/nova_unlock/licensing/license_hanan_qaisar_lifetime.json"
+    rm -f \
+        "$STAGE/opt/novaunlock/nova_unlock/licensing/license_generator.py" \
+        "$STAGE/opt/novaunlock/nova_unlock/licensing/license_generator.pyc" \
+        "$STAGE/opt/novaunlock/nova_unlock/licensing/license_signer.py" \
+        "$STAGE/opt/novaunlock/nova_unlock/licensing/license_signer.pyc" \
+        "$STAGE/opt/novaunlock/nova_unlock/licensing/license_hanan_qaisar_lifetime.json"
     mkdir -p "$STAGE/opt/novaunlock/scripts"
-    for s in face_unlock_daemon.py face_login_greeter.py nova_pam_auth.py enroll_gui.py enroll.py enroll_entry.py; do
+    for s in face_unlock_daemon.py face_login_greeter.py nova_pam_auth.py; do
         [ -f "$REPO/scripts/$s" ] && cp "$REPO/scripts/$s" "$STAGE/opt/novaunlock/scripts/$s"
     done
     cp "$REPO/scripts/nova_pkg_postinstall.sh" "$STAGE/opt/novaunlock/nova_pkg_postinstall.sh"
@@ -42,7 +47,9 @@ else
 fi
 
 # Static integration files
-mkdir -p "$STAGE/usr/lib/systemd/user" "$STAGE/etc/xdg/autostart"
+mkdir -p "$STAGE/usr/lib/systemd/user" "$STAGE/usr/lib/systemd/system" "$STAGE/etc/xdg/autostart"
+install -m 0644 "$REPO/systemd/nova-facelock.service" \
+    "$STAGE/usr/lib/systemd/system/nova-facelock.service"
 cat > "$STAGE/usr/lib/systemd/user/nova-unlock-watcher.service" << 'UNIT'
 [Unit]
 Description=NovaUnlock Face Presence Guard
@@ -85,6 +92,7 @@ Summary:        Next-generation face authentication for Linux
 License:        Proprietary
 URL:            https://github.com/hananqaisar-commits/NovaUnlock
 BuildArch:      x86_64
+AutoReqProv:    no
 Source0:        novaunlock-tree.tar.gz
 Requires:       python3, python3-pip, python3-qt5, python3-opencv, python3-numpy, python3-pyyaml, python3-xlib, pam_script
 
@@ -104,8 +112,8 @@ tar -C %{buildroot} -xzf %{SOURCE0}
 
 %post
 # The shared postinstall (ensure_runtime_deps) pip-installs dlib / face_recognition
-# into the SYSTEM site-packages with --break-system-packages. Do NOT use
-# `pip install --user` here: the daemon runs as root / system python, which does
+# into the SYSTEM site-packages with --break-system-packages. Do NOT use a
+# per-user pip installation here: the daemon runs as root / system python, which does
 # not consult user-site (PEP 370 disables it for uid 0), so --user installs would
 # never be importable at runtime.
 [ -x /opt/novaunlock/nova_pkg_postinstall.sh ] && /opt/novaunlock/nova_pkg_postinstall.sh configure || true
@@ -120,6 +128,7 @@ rm -rf /var/log/novaunlock
 
 %files
 /opt/novaunlock
+/usr/lib/systemd/system/nova-facelock.service
 /usr/lib/systemd/user/nova-unlock-watcher.service
 /etc/xdg/autostart/nova-unlock-watcher.desktop
 
@@ -129,11 +138,17 @@ rm -rf /var/log/novaunlock
 SPEC
 
 echo "==> rpmbuild"
-rpmbuild --define "_topdir $TOPDIR" --define "_rpmdbpath /tmp/nova_rpmdb" -bb "$TOPDIR/SPECS/novaunlock.spec" 2>&1 | tail -15
+# Sources are compiled by our installer on the target Python ABI. Disable
+# RPM's automatic Python byte-compile helper: on Kali it invokes the
+# externally-managed system Python and trips PEP 668 during package creation.
+rpmbuild --define "_topdir $TOPDIR" --define "_rpmdbpath /tmp/nova_rpmdb" \
+    --define "__brp_python_bytecompile %{nil}" --define "__os_install_post %{nil}" \
+    -bb "$TOPDIR/SPECS/novaunlock.spec" 2>&1 | tail -15
 RPM=$(find "$TOPDIR/RPMS" -name "novaunlock-${VERSION}-1.*.rpm" | head -1)
 if [ -n "$RPM" ]; then
     mkdir -p "$RELEASE"
     cp "$RPM" "$OUT"
+    sha256sum "$OUT" > "$OUT.sha256"
     echo "==> Built: $OUT ($(stat -c %s "$OUT") bytes)"
 else
     echo "!! rpm build failed"; exit 1

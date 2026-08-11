@@ -59,7 +59,7 @@ echo "----- tree -----"
 if [ "$MODE" = "native" ]; then
   LEFT=$(find "$NOVA_DIR" -name '*.py' 2>/dev/null | wc -l)
   report "no .py source left in tree" "$([ "$LEFT" = "0" ] && echo 0 || echo 1)" "$LEFT .py files remain"
-  for f in scripts/face_unlock_daemon.pyc scripts/enroll_gui.pyc nova_unlock/pam/pam_script_auth; do
+  for f in scripts/face_unlock_daemon.pyc nova_unlock/ui/enrollment_wizard.pyc nova_unlock/pam/pam_script_auth; do
     [ -e "$NOVA_DIR/$f" ] && report "entrypoint $f" 0 || report "entrypoint $f" 1 "missing"
   done
 fi

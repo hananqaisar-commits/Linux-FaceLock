@@ -25,16 +25,20 @@ echo "    out    : $STAGE_NOVA"
 mkdir -p "$STAGE_NOVA/nova_unlock" "$STAGE_NOVA/scripts"
 
 # 1) Copy nova_unlock source tree (exclude caches, tests, dev artifacts)
-rsync -a --exclude '__pycache__' --exclude '*.pyc' --exclude '*.pyo' \
+rsync -rltD --no-owner --no-group --exclude '__pycache__' --exclude '*.pyc' --exclude '*.pyo' \
          --exclude 'tests' --exclude '.git' --exclude '*.egg-info' \
          "$SRC_NOVA/" "$STAGE_NOVA/nova_unlock/"
 
-# 2) NEVER ship the developer's own lifetime license
-rm -f "$STAGE_NOVA/nova_unlock/licensing/license_hanan_qaisar_lifetime.json"
+# 2) NEVER ship license-issuing material. Releases retain only the validator
+# required to verify a customer activation; the private generator and the
+# developer activation remain in the operator environment.
+rm -f \
+    "$STAGE_NOVA/nova_unlock/licensing/license_generator.py" \
+    "$STAGE_NOVA/nova_unlock/licensing/license_signer.py" \
+    "$STAGE_NOVA/nova_unlock/licensing/license_hanan_qaisar_lifetime.json"
 
 # 3) Copy the launcher scripts we actually need at runtime
-for s in face_unlock_daemon.py face_login_greeter.py nova_pam_auth.py \
-         enroll_gui.py enroll.py enroll_entry.py; do
+for s in face_unlock_daemon.py face_login_greeter.py nova_pam_auth.py; do
     if [ -f "$SRC_SCRIPTS/$s" ]; then
         cp "$SRC_SCRIPTS/$s" "$STAGE_NOVA/scripts/$s"
     fi
@@ -62,10 +66,16 @@ cp "$REPO_ROOT/scripts/nova_pkg_postinstall.sh" "$STAGE_NOVA/nova_pkg_postinstal
 #     wheels, post-install finds WHEELS_DIR missing, and dlib/face_recognition never install
 #     (the offline import failure seen in the v1.32 Docker test).
 if [ -d "$REPO_ROOT/wheels" ]; then
-    echo "==> Staging offline wheels -> $STAGE_NOVA/wheels"
-    mkdir -p "$STAGE_NOVA/wheels"
-    cp -a "$REPO_ROOT/wheels/." "$STAGE_NOVA/wheels/"
-    echo "    wheel dirs: $(ls -1 "$STAGE_NOVA/wheels" 2>/dev/null | tr '\n' ' ')"
+    target_cp="$($PY_BIN -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_info.minor}")')"
+    if [ ! -d "$REPO_ROOT/wheels/$target_cp" ]; then
+        echo "!! WARNING: wheelhouse for $target_cp is missing" >&2
+        exit 1
+    fi
+    echo "==> Staging offline wheels ($target_cp) -> $STAGE_NOVA/wheels/$target_cp"
+    mkdir -p "$STAGE_NOVA/wheels/$target_cp"
+    cp -a --no-preserve=ownership "$REPO_ROOT/wheels/$target_cp/." \
+        "$STAGE_NOVA/wheels/$target_cp/"
+    echo "    wheel dir: $target_cp"
 else
     echo "!! WARNING: $REPO_ROOT/wheels MISSING — native post-install cannot install ML deps offline" >&2
 fi
@@ -76,8 +86,9 @@ find "$STAGE_NOVA" -type f -exec chmod 0644 {} +
 chmod 0755 "$STAGE_NOVA/nova_pkg_postinstall.sh"
 [ -f "$STAGE_NOVA/nova_unlock/pam/pam_script_auth" ] && chmod 0755 "$STAGE_NOVA/nova_unlock/pam/pam_script_auth"
 
-# 6) Sanity: no dev license leak; source present (compiled at install)
-LEAK=$(find "$STAGE_NOVA" \( -name '*hanan*qaisar*' -o -name '*lifetime*' \) | wc -l)
+# 6) Sanity: no developer activation or issuance code leak; source is compiled
+# at install time for the target Python ABI.
+LEAK=$(find "$STAGE_NOVA" \( -iname '*hanan*qaisar*' -o -iname '*lifetime*' -o -name 'license_generator.py' -o -name 'license_generator.pyc' -o -name 'license_signer.py' -o -name 'license_signer.pyc' \) | wc -l)
 PY_COUNT=$(find "$STAGE_NOVA" -name '*.py' | wc -l)
 echo "    .py files : $PY_COUNT"
 echo "    dev leak  : $LEAK  (must be 0)"

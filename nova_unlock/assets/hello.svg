@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="dotGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!--
+    Apple iOS "hello" cursive - exact path from mtynior/AppleHello
+    Converted from SwiftUI relative coords to SVG absolute (900x300)
+    Single continuous stroke, animated left-to-right with synced dot
+    Transparent background
+  -->
+
+  <path id="helloPath"
+    d="
+      M 170.5,194.7
+      C 246.8,155.0 214.3,178.2 246.8,155.0
+      C 271.8,137.2 284.9,113.2 274.8,102.8
+      C 238.3,65.3 216.6,202.2 221.9,202.2
+      C 227.2,202.3 226.9,162.4 253.7,153.3
+      C 280.6,144.3 290.1,156.3 291.3,162.0
+      C 293.3,171.0 285.2,185.4 286.6,190.6
+      C 292.3,212.6 385.1,191.0 392.4,166.2
+      C 400.2,139.5 331.5,140.8 345.1,183.4
+      C 350.1,199.1 381.1,203.2 397.6,200.8
+      C 457.3,192.3 498.3,149.0 496.8,115.7
+      C 494.9,72.6 430.7,116.2 446.1,182.6
+      C 452.1,208.2 502.6,199.9 517.5,193.1
+      C 545.1,180.5 593.7,144.2 584.8,108.9
+      C 575.5,72.2 505.6,132.7 537.7,187.8
+      C 548.4,206.2 580.5,200.0 589.3,197.2
+      C 610.2,190.4 617.0,166.1 634.3,155.5
+      C 656.2,142.0 690.6,152.1 692.1,168.0
+      C 695.2,203.2 649.4,203.2 632.4,195.3
+      C 617.6,188.5 614.2,168.1 634.0,155.5
+      C 647.6,146.8 669.3,146.6 697.8,156.3
+      C 709.4,160.3 719.4,159.5 727.3,153.2
+    "
+    fill="none"
+    stroke="white"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+    pathLength="1000"
+    stroke-dasharray="1000"
+    stroke-dashoffset="1000">
+    <animate
+      attributeName="stroke-dashoffset"
+      from="1000"
+      to="0"
+      begin="0.3s"
+      dur="4.5s"
+      fill="freeze"
+      calcMode="linear"/>
+  </path>
+
+  <!-- Glowing white dot follows the drawing tip -->
+  <circle r="6" fill="white" filter="url(#dotGlow)" opacity="0">
+    <animate
+      attributeName="opacity"
+      values="0;1;1;1;0"
+      keyTimes="0;0.01;0.90;0.98;1"
+      begin="0.3s"
+      dur="4.5s"
+      fill="freeze"
+      calcMode="linear"/>
+    <animateMotion
+      begin="0.3s"
+      dur="4.5s"
+      fill="freeze"
+      calcMode="linear"
+      rotate="auto">
+      <mpath href="#helloPath"/>
+    </animateMotion>
+  </circle>
+
+</svg>

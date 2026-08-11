@@ -1,0 +1,13 @@
+[Unit]
+Description=NovaUnlock FaceLock authentication and greeter integration
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/nova_facelock_service.sh start
+ExecStop=/usr/local/bin/nova_facelock_service.sh stop
+
+[Install]
+WantedBy=multi-user.target

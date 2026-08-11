@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-2.014}"
+VERSION="2.21"
 SOURCE_DIR="${WINDOWS_SOURCE_DIR:-$ROOT_DIR/build/win_release}"
 RELEASE_DIR="$ROOT_DIR/build/release/windows-v$VERSION"
 OUTPUT_ZIP="$ROOT_DIR/dist/nova_unlock_windows_v$VERSION.zip"
@@ -57,6 +57,12 @@ fi
 # 2a. nova_unlock package
 mkdir -p "$RELEASE_DIR/nova_unlock"
 cp -a "$ROOT_DIR/nova_unlock/." "$RELEASE_DIR/nova_unlock/"
+# The customer runtime can validate an activation, but license creation is an
+# operator-only capability and must not be part of a release bundle.
+rm -f \
+    "$RELEASE_DIR/nova_unlock/licensing/license_generator.py" \
+    "$RELEASE_DIR/nova_unlock/licensing/license_signer.py" \
+    "$RELEASE_DIR/nova_unlock/licensing/license_hanan_qaisar_lifetime.json"
 python3.11 -m compileall -q -b "$RELEASE_DIR/nova_unlock"
 find "$RELEASE_DIR/nova_unlock" -name '*.py' -delete
 find "$RELEASE_DIR/nova_unlock" -type d -name '__pycache__' -prune -exec rm -rf {} +
@@ -64,6 +70,9 @@ find "$RELEASE_DIR/nova_unlock" -type d -name '__pycache__' -prune -exec rm -rf 
 # 2b. scripts directory (enroll.py, enroll_gui.py, etc.)
 mkdir -p "$RELEASE_DIR/scripts"
 cp -a "$ROOT_DIR/scripts/"*.py "$RELEASE_DIR/scripts/" 2>/dev/null || true
+rm -f "$RELEASE_DIR/scripts/enroll.py" \
+      "$RELEASE_DIR/scripts/enroll_gui.py" \
+      "$RELEASE_DIR/scripts/enroll_entry.py"
 python3.11 -m compileall -q -b "$RELEASE_DIR/scripts"
 find "$RELEASE_DIR/scripts" -name '*.py' -delete
 find "$RELEASE_DIR/scripts" -name '*.sh' -delete 2>/dev/null || true
@@ -73,6 +82,11 @@ find "$RELEASE_DIR/scripts" -type d -name '__pycache__' -prune -exec rm -rf {} +
 if find "$RELEASE_DIR" -name '*.py' -print -quit | grep -q .; then
     echo "FATAL: Python source files still present in release bundle!" >&2
     find "$RELEASE_DIR" -name '*.py' >&2
+    exit 1
+fi
+
+if find "$RELEASE_DIR" \( -iname '*hanan*qaisar*' -o -name 'license_generator.py' -o -name 'license_generator.pyc' -o -name 'license_signer.py' -o -name 'license_signer.pyc' \) -print -quit | grep -q .; then
+    echo "FATAL: private license-issuance material is present in release bundle!" >&2
     exit 1
 fi
 
@@ -93,6 +107,7 @@ face_recognition==1.3.0
 face_recognition_models==0.3.0
 PyQt5>=5.15.0
 PyYAML>=6.0
+cryptography==46.0.7
 REQ
 
 cat > "$RELEASE_DIR/install.bat" << 'BAT'
@@ -426,7 +441,7 @@ if exist "%SRC%requirements.txt" (
 exit /b 0
 
 :verify_python_dependencies
-%PY% -c "import cv2, numpy, face_recognition, PyQt5, yaml" >> "%LOG%" 2>&1
+%PY% -c "import cv2, numpy, face_recognition, PyQt5, yaml, cryptography" >> "%LOG%" 2>&1
 if errorlevel 1 exit /b 1
 exit /b 0
 

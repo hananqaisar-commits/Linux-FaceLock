@@ -1,49 +1,73 @@
-# Large binary files — uploaded via gh release only
-dist/
+# Linux-FaceLock .gitignore
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
 build/
-releases/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# C / C++ / Build Outputs
+*.o
+*.obj
+*.dll
+*.exe
+*.so
+*.dylib
+*.a
+*.lib
+*.spec
+
+# Release Packages & Large Models
+/dist/
+/build/
+/releases/
+/nova_bundle/
 *.dat
 *.tar.gz
-*.SHA256.txt
-*.bz2
+*.tar.zst
+*.deb
+*.rpm
 *.zip
+*.sha256
+*.manifest.txt
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
-*.egg-info/
+# Local User Data & Credentials
+data/faces/
+config/nova.conf
+/data/
+/config/
 
-# Logs
-logs/
-*.log
-
-# Temp
-/tmp/
-*.lock
-*.bak
-*.prev_*
-*.old
-
-# VS Code
+# IDE / Tool Caches
+.claude/
+.agents/
+.gemini/
 .vscode/
-releases/
-dist/
-build/
-*.tar.gz
-nova_unlock_installer_v*
-!nova_unlock_installer_*.spec
-nova_unlock/
-build/
-scripts/*.py
-*.py
-*.cpp
-*.h
-nova_unlock/
-build/
-scripts/*.py
-*.py
-*.cpp
-*.h
+.idea/
+*.swp
+*.swo
+*~
+*.bak*
+
+# OS specific
+.DS_Store
+Thumbs.db
