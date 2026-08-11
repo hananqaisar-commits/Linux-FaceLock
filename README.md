@@ -4,7 +4,9 @@
 
 ### *Authentic Dynamic Island Face ID & PAM Face Authentication for Linux & Windows*
 
+[![CI](https://github.com/hananqaisar-commits/Linux-FaceLock/actions/workflows/ci.yml/badge.svg)](https://github.com/hananqaisar-commits/Linux-FaceLock/actions)
 [![GitHub release](https://img.shields.io/github/v/release/hananqaisar-commits/Linux-FaceLock?style=for-the-badge&color=007ACC&logo=github)](https://github.com/hananqaisar-commits/Linux-FaceLock/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/hananqaisar-commits/Linux-FaceLock?style=for-the-badge&color=gold&logo=github)](https://github.com/hananqaisar-commits/Linux-FaceLock/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?style=for-the-badge&logo=python)](https://python.org)
 [![Linux Support](https://img.shields.io/badge/Distros-Ubuntu%20%7C%20Fedora%20%7C%20Arch%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux)](README.md)
@@ -141,6 +143,36 @@ We welcome community contributions! Check out our [CONTRIBUTING.md](CONTRIBUTING
 
 ---
 
+## 🆚 How does it compare?
+
+| | **Linux-FaceLock** | Howdy | fprintd |
+|---|:---:|:---:|:---:|
+| Dynamic Island UI | ✅ | ❌ | ❌ |
+| PAM Integration | ✅ | ✅ | ✅ |
+| Lock Screen Unlock | ✅ | ✅ | ❌ |
+| Login Screen (LightDM/GDM) | ✅ | ❌ | ❌ |
+| Suspend/Resume Auto-Relock | ✅ | ❌ | ❌ |
+| Multi-distro Packages | ✅ `.deb` `.rpm` `.pkg` | `.deb` only | varies |
+| Windows Support | ✅ | ❌ | ❌ |
+| Audio Feedback | ✅ | ❌ | ❌ |
+| Active Development (2026) | ✅ | ⚠️ | ⚠️ |
+
+---
+
 ## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## ⭐ Star History
+
+If Linux-FaceLock helped you, please consider giving it a ⭐ — it helps others discover the project!
+
+<a href="https://star-history.com/#hananqaisar-commits/Linux-FaceLock&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=hananqaisar-commits/Linux-FaceLock&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=hananqaisar-commits/Linux-FaceLock&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=hananqaisar-commits/Linux-FaceLock&type=Date" width="600" />
+ </picture>
+</a>
