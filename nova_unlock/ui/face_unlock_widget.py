@@ -921,8 +921,8 @@ class FaceIDLoginApp:
         app = QApplication.instance() or QApplication(sys.argv)
         sig = Sig()
         w = FaceUnlockWidget(sig, demo_mode=False)
-        scr = app.primaryScreen().geometry()
-        w.move((scr.width() - w.W) // 2, 0)
+        scr = app.primaryScreen().availableGeometry()
+        w.move(scr.x() + (scr.width() - w.W) // 2, scr.y() + 10)
         w.show(); w.raise_(); w.activateWindow()
 
         def force_top():
@@ -983,13 +983,14 @@ def demo():
     app = QApplication(sys.argv)
     sig = Sig()
     w = FaceUnlockWidget(sig, demo_mode=True)
-    scr = app.primaryScreen().geometry()
-    w.move((scr.width() - w.W) // 2, 0)
+    scr = app.primaryScreen().availableGeometry()
+    w.move(scr.x() + (scr.width() - w.W) // 2, scr.y() + 10)
     w.show()
     print("🎬 Demo Mode: SUCCESS → FAIL → SUCCESS (auto-cycling)")
     print("   • Watch lock unlock alongside sphere animation")
     print("   • Press ESC to exit")
     app.exec_()
+
 
 if __name__ == "__main__":
     import argparse

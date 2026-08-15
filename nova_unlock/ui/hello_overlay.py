@@ -639,34 +639,34 @@ class JarvisOverlay(Gtk.Window):
         if alpha < 0.01:
             return
 
-        # ── Layout ────────────────────────────────────────────────────
-        # SVG viewBox is 900x300, hello path uses x:170-727 = 557 wide
-        # Make it BIGGER — fill 75% of screen width
-        target_hello_w = min(w * 0.32, 700)
+        # ── Layout & Screen Centering ──────────────────────────────────
+        # SVG viewBox is 900x300, hello path uses x:170-727 = ~557 wide
+        # Elegant responsive scaling centered on any display resolution
+        target_hello_w = min(w * 0.36, 760)
         path_native_w = 727 - 170  # ~557
-        scale = target_hello_w / float(path_native_w)
+        scale = max(0.6, target_hello_w / float(path_native_w))
 
         scaled_path_w = path_native_w * scale
 
-        # Font size matched to hello path height (~100px native)
-        # Hello path height ~100 native units → matching script size
         cr.select_font_face(
             self._hello_font,
             cairo.FONT_SLANT_ITALIC,
             cairo.FONT_WEIGHT_NORMAL
         )
-        # Match font height to actual hello stroke height (~100 native units)
-        font_size = int(155 * scale)
+        font_size = int(158 * scale)
         cr.set_font_size(font_size)
         suffix_ext = cr.text_extents(suffix_text)
         suffix_w = suffix_ext.width
 
+        # Exact bounding box calculation for perfect horizontal & vertical centering
         total_w = scaled_path_w + suffix_w
-        # Center entire composition
-        left_margin = (w - total_w) / 2
-        # ox is where SVG x=0 should be; SVG hello starts at x=170
-        ox = left_margin - 170 * scale
-        oy = h / 2 - 148 * scale  # SVG y midline ~150
+        left_margin = (w - total_w) / 2.0
+        ox = left_margin - 170.0 * scale
+
+        # SVG path height is roughly 145 native units (y: 65 to 210)
+        # Center the path and text vertically dead-center on screen (h / 2)
+        oy = (h / 2.0) - (142.0 * scale)
+
 
         # ── Write progress for hello path ─────────────────────────────
         if phase < HELLO_WRITE:
