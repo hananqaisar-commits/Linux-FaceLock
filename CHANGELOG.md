@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.2] - 2026-08-15
+
+### Added
+- **Fully Working Release v3.2** with unified systemd service (`novaunlock.service`) and `systemctl enable/disable novaunlock` support.
+- **KDE Desktop Loading Immunity**: Greeting overlay ("hello + username") features signal protection (`SIG_IGN`), KDE splash screen detection (`_wait_for_desktop_ready`), unmap immunity, and continuous topmost re-raising loop (`_force_topmost`).
+- **Voice Speech & Watchdog**: Integrated non-blocking speech synthesis ("Hello <user>, welcome back") with watchdog playback protection.
+- **Legacy Files Directory (`old_versions/`)**: Separated legacy single-file scripts into `old_versions/` to streamline developer workspace and eliminate setup confusion.
+- **Cross-Distro & Multi-Platform Support**: Preserved build pipelines for 4 major targets: Debian/Ubuntu (`.deb`), Fedora/RPM (`.rpm`), Arch (`.pkg.tar.zst`), and Windows 10/11 (`.exe` / `.zip`).
+
 ## [2.21] - 2026-08-11
 
 ### Added

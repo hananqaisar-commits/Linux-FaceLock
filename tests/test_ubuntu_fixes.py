@@ -150,17 +150,27 @@ class TestFaceLockSystemService(unittest.TestCase):
         self.assertIn('timeout 25s', source)
 
     def test_system_service_controls_greeter_before_display_manager(self):
-        unit = (ROOT / "systemd/nova-facelock.service").read_text()
+        unit = (ROOT / "systemd/novaunlock.service").read_text()
         self.assertIn("Before=display-manager.service", unit)
         self.assertIn("RemainAfterExit=yes", unit)
         self.assertIn("nova_facelock_service.sh start", unit)
         self.assertIn("nova_facelock_service.sh stop", unit)
+        self.assertIn("Alias=nova-facelock.service", unit)
 
     def test_native_builds_ship_the_system_service(self):
         for name in ("build_deb.sh", "build_rpm.sh", "build_arch.sh"):
             source = (ROOT / "scripts" / name).read_text()
-            self.assertIn("nova-facelock.service", source, name)
+            self.assertTrue("novaunlock.service" in source or "nova-facelock.service" in source, name)
+
+    def test_hello_overlay_has_signal_protection_and_topmost_loop(self):
+        overlay = (ROOT / "nova_unlock/ui/hello_overlay.py").read_text()
+        welcome = (ROOT / "nova_unlock/ui/welcome_screen.py").read_text()
+        self.assertIn("SIG_IGN", overlay)
+        self.assertIn("SIG_IGN", welcome)
+        self.assertIn("_force_topmost", overlay)
+        self.assertIn("_wait_for_desktop_ready", welcome)
 
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

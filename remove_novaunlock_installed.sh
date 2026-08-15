@@ -55,9 +55,13 @@ REMOVE_FILES=(
     /etc/lightdm/lightdm.conf.d/50-nova-unlock.conf
     /etc/lightdm/lightdm.conf.d/99-nova-unlock-autologin.conf
     /etc/sudoers.d/nova-unlock
+    /etc/systemd/system/novaunlock.service
+    /etc/systemd/system/nova-facelock.service
+    /etc/novaunlock/facelock.enabled
     "$REAL_HOME/.config/autostart/nova-unlock-watcher.desktop"
     "$REAL_HOME/.config/systemd/user/nova-unlock-watcher.service"
 )
+
 REMOVE_DIRS=(
     /opt/novaunlock
     /var/lib/novaunlock

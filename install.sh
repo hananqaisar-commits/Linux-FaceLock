@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════
-#  NovaUnlock Installer v2.112
+#  NovaUnlock Installer v3.2
 #  Distros:  Debian / Ubuntu / Kali | Fedora / RHEL | Arch | openSUSE
+
 #  Desktops: XFCE | GNOME | KDE | MATE | Cinnamon
 #  DMs:      LightDM | GDM | SDDM
 # ═══════════════════════════════════════════════════════════════
@@ -1182,24 +1183,28 @@ esac
 FACEOFSERVICE
 chmod 755 /usr/local/bin/nova_facelock_service.sh
 
-cat > /etc/systemd/system/nova-facelock.service << 'FACEUNIT'
+cat > /etc/systemd/system/novaunlock.service << 'FACEUNIT'
 [Unit]
-Description=NovaUnlock FaceLock authentication and greeter integration
-After=local-fs.target
+Description=NovaUnlock FaceLock System Authentication & Greeter Service
+After=local-fs.target network.target
 Before=display-manager.service
+Alias=nova-facelock.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/local/bin/nova_facelock_service.sh start
 ExecStop=/usr/local/bin/nova_facelock_service.sh stop
+ExecReload=/usr/local/bin/nova_facelock_service.sh restart
 
 [Install]
 WantedBy=multi-user.target
 FACEUNIT
+ln -sf /etc/systemd/system/novaunlock.service /etc/systemd/system/nova-facelock.service 2>/dev/null || true
 systemctl daemon-reload
-systemctl enable --now nova-facelock.service || warn "Could not start nova-facelock.service; enable it after installation"
-ok "FaceLock system service registered (nova-facelock)"
+systemctl enable --now novaunlock.service || warn "Could not start novaunlock.service; enable it after installation"
+ok "FaceLock system service registered (novaunlock / nova-facelock)"
+
 
 chown -R "$REAL_USER:$REAL_GROUP" "$NOVA_DIR"
 

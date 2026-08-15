@@ -51,18 +51,18 @@ Download the latest binary release for your distribution from [GitHub Releases](
 
 #### 🌀 Debian / Ubuntu / Kali / Mint / Pop!_OS (`.deb`)
 ```bash
-sudo dpkg -i NovaUnlock-v2.21-Debian.deb
+sudo dpkg -i NovaUnlock-v3.2-Debian.deb
 sudo apt-get install -f
 ```
 
 #### 🎩 Fedora / RHEL / openSUSE (`.rpm`)
 ```bash
-sudo dnf install ./NovaUnlock-v2.21-Fedora.rpm
+sudo dnf install ./NovaUnlock-v3.2-Fedora.rpm
 ```
 
 #### 🏹 Arch Linux / Manjaro (`.pkg.tar.zst`)
 ```bash
-sudo pacman -U ./NovaUnlock-v2.21-Arch.pkg.tar.zst
+sudo pacman -U ./NovaUnlock-v3.2-Arch.pkg.tar.zst
 ```
 
 ---
@@ -72,8 +72,8 @@ sudo pacman -U ./NovaUnlock-v2.21-Arch.pkg.tar.zst
 Works on any Linux distribution without external package manager requirements:
 
 ```bash
-chmod +x nova_unlock_installer_v2.21
-sudo ./nova_unlock_installer_v2.21
+chmod +x nova_unlock_installer_v3.2
+sudo ./nova_unlock_installer_v3.2
 ```
 
 ---

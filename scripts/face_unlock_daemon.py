@@ -115,8 +115,12 @@ from nova_unlock.vision.face_recognizer import (
     get_enrolled_users, load_face, get_max_attempts,
 )
 from nova_unlock.vision.camera_detector import open_camera
-from nova_unlock.ui.face_id_screen import Sig, FaceUnlockWidget, FaceWorker
+try:
+    from nova_unlock.ui.face_id_screen import Sig, FaceUnlockWidget, FaceWorker
+except ImportError:
+    from nova_unlock.ui.face_unlock_widget import Sig, FaceUnlockWidget, FaceWorker
 from nova_unlock.ui.universal_embed import smart_embed, raise_embedded, ensure_on_top
+
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer
 

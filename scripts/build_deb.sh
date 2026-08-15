@@ -5,7 +5,8 @@
 #
 set -euo pipefail
 
-VERSION="2.21"
+VERSION="3.2"
+
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE="$REPO/build/release"
 WORK="$(mktemp -d)"

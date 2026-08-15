@@ -13,7 +13,8 @@ from pathlib import Path
 try:
     from nova_unlock import __version__ as NOVA_VERSION
 except Exception:
-    NOVA_VERSION = "2.21"
+    NOVA_VERSION = "3.2"
+
 
 CACHE_FILE = "/tmp/nova_unlock_pam_cache.json"
 

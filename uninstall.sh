@@ -6,9 +6,10 @@ REAL_USER="${SUDO_USER:-$USER}"
 [ "$REAL_USER" = "root" ] && REAL_USER=$(logname 2>/dev/null || echo "")
 REAL_HOME="/home/$REAL_USER"
 
-systemctl disable --now nova-facelock.service 2>/dev/null || true
-rm -f /etc/systemd/system/nova-facelock.service /etc/novaunlock/facelock.enabled
+systemctl disable --now novaunlock.service nova-facelock.service 2>/dev/null || true
+rm -f /etc/systemd/system/novaunlock.service /etc/systemd/system/nova-facelock.service /etc/novaunlock/facelock.enabled
 systemctl daemon-reload 2>/dev/null || true
+
 
 rm -f \
     /usr/local/bin/nova_xflock4_lock.sh \

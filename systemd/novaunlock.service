@@ -2,7 +2,7 @@
 Description=NovaUnlock FaceLock System Authentication & Greeter Service
 After=local-fs.target network.target
 Before=display-manager.service
-Alias=novaunlock.service
+Alias=nova-facelock.service
 
 [Service]
 Type=oneshot

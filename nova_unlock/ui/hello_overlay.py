@@ -25,6 +25,14 @@ import socket
 import os
 import sys
 import json
+import signal
+
+# Protect against desktop session manager signals (SIGHUP/SIGTERM during KDE load)
+for _sig in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
+    try:
+        signal.signal(_sig, signal.SIG_IGN)
+    except Exception:
+        pass
 
 SOCKET_PATH = "/tmp/nova_hello.sock"
 
@@ -108,6 +116,9 @@ class JarvisOverlay(Gtk.Window):
         self._hello_font   = self._pick_cursive_font()
 
         self._setup_window()
+        self.connect('delete-event', self._on_delete_event)
+        self.connect('unmap-event', self._on_unmap_event)
+        self._topmost_tick_counter = 0
 
         da = Gtk.DrawingArea()
         da.connect('draw', self._draw)
@@ -115,6 +126,33 @@ class JarvisOverlay(Gtk.Window):
         self._da = da
 
         GLib.timeout_add(16, self._tick)
+
+    def _on_delete_event(self, widget, event):
+        if self._state == "hello" and time.time() < self._hold_until:
+            return True
+        return False
+
+    def _on_unmap_event(self, widget, event):
+        if self._state == "hello" and time.time() < self._hold_until:
+            GLib.idle_add(self._force_topmost)
+            return True
+        return False
+
+    def _force_topmost(self):
+        try:
+            if not self.get_visible():
+                self.show_all()
+                self._visible = True
+            self.set_keep_above(True)
+            self.stick()
+            self.present()
+            win = self.get_window()
+            if win:
+                win.raise_()
+                win.show()
+        except Exception:
+            pass
+
 
     def _pick_cursive_font(self):
         """Find best available cursive font"""
@@ -1055,10 +1093,16 @@ class JarvisOverlay(Gtk.Window):
         self._border_phase += dt
         self._hello_phase  += dt
 
+        if self._state == "hello" and self._visible:
+            self._topmost_tick_counter = (getattr(self, '_topmost_tick_counter', 0) + 1) % 6
+            if self._topmost_tick_counter == 0:
+                self._force_topmost()
+
         if self._visible or self._border_intensity > 0.005:
             self._da.queue_draw()
 
         return True
+
 
     # ══════════════════════════════════════════════════════════════════════
     #  COMMAND HANDLER
