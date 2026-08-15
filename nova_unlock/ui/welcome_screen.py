@@ -114,8 +114,10 @@ def _speak_welcome_audio(name: str) -> None:
             ["espeak", "-s", "150", phrase],
         ]
 
+        import shutil
         for cmd in tts_cmds:
-            if subprocess.run(["command", "-v", cmd[0]], capture_output=True, shell=False).returncode == 0:
+            if shutil.which(cmd[0]):
+
                 try:
                     res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=4)
                     if res.returncode == 0:

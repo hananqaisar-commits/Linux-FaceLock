@@ -186,14 +186,24 @@ class JarvisOverlay(Gtk.Window):
         self.stick()
 
         display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor()
-        geo     = monitor.get_geometry()
-        self._sw = geo.width
-        self._sh = geo.height
+        monitor = display.get_primary_monitor() if display else None
+        if not monitor and display and display.get_n_monitors() > 0:
+            monitor = display.get_monitor(0)
+
+        if monitor:
+            geo = monitor.get_geometry()
+            self._sw = geo.width
+            self._sh = geo.height
+            gx, gy = geo.x, geo.y
+        else:
+            self._sw = 1920
+            self._sh = 1080
+            gx, gy = 0, 0
 
         # Full screen for border effect
         self.set_size_request(self._sw, self._sh)
-        self.move(geo.x, geo.y)
+        self.move(gx, gy)
+
         self.realize()
         region = cairo.Region(cairo.RectangleInt(0, 0, 0, 0))
         self.get_window().input_shape_combine_region(region, 0, 0)
