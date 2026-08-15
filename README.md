@@ -122,13 +122,15 @@ python3 -m nova_unlock.ui.welcome_screen
 ### 4. Service enable on System boot
 
 ```bash
-sudo systemctl enable novaunlock.service
+
+sudo systemctl enable nova-facelock.service
+
 ```
 
 ### 5. Service disable on System boot
 
 ```bash
-sudo systemctl disable novaunlock.service
+sudo systemctl disable nova-facelock.service
 ```
 
 ---

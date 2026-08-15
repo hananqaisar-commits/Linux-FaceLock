@@ -449,13 +449,20 @@ cat > "$PAM_SCRIPT_BIN" << PAMSCRIPT
 #!/bin/bash
 CACHE="$CACHE_FILE"
 LOGFILE="$LOG_DIR/pam_auth.log"
+VENV_PY="$VENV/bin/python3"
+PAM_PY="$NOVA_DIR/scripts/nova_pam_auth.py"
 
-echo "\$(date) PAM called for: \$PAM_USER" >> "\$LOGFILE"
+echo "\$(date) PAM called for: \$PAM_USER" >> "\$LOGFILE" 2>/dev/null
 
-[ ! -f "\$CACHE" ] && exit 1
-[ ! -f "\$CACHE" ] && echo "\$(date) NO CACHE" >> "\$LOGFILE" && exit 1
+PAM_CLEAN=\$(echo "\$PAM_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
 
-CACHE_USER=\$(python3 -c "
+# Root always uses the password (face is primary for normal users only)
+[ "\$PAM_CLEAN" = "root" ] && { echo "\$(date) ROOT SKIP" >> "\$LOGFILE" 2>/dev/null; exit 1; }
+
+# Fast path: check short-lived PAM cache written by UI daemon / greeter
+if [ -f "\$CACHE" ]; then
+    CACHE_USER=\$("
+\$VENV_PY" -c "
 import json, sys, time
 try:
     d = json.load(open('\$CACHE'))
@@ -467,18 +474,24 @@ except Exception:
     pass
 " 2>/dev/null)
 
-PAM_CLEAN=\$(echo "\$PAM_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-
-# Root always uses the password (face is primary for normal users only)
-[ "\$PAM_CLEAN" = "root" ] && { echo "\$(date) ROOT SKIP" >> "\$LOGFILE"; exit 1; }
-
-if [ -n "\$CACHE_USER" ] && [ "\$CACHE_USER" = "\$PAM_CLEAN" ]; then
-    echo "\$(date) CACHE HIT: \$PAM_CLEAN" >> "\$LOGFILE"
-    rm -f "\$CACHE"
-    exit 0
+    if [ -n "\$CACHE_USER" ] && [ "\$CACHE_USER" = "\$PAM_CLEAN" ]; then
+        echo "\$(date) CACHE HIT: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
+        rm -f "\$CACHE"
+        exit 0
+    fi
 fi
 
-echo "\$(date) CACHE MISS: cache=\$CACHE_USER pam=\$PAM_CLEAN" >> "\$LOGFILE"
+# Fallback path: live camera face scan for sudo / lockscreen unlock
+if [ -x "\$VENV_PY" ] && [ -f "\$PAM_PY" ]; then
+    echo "\$(date) LIVE FACE SCAN START: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
+    if "\$VENV_PY" "\$PAM_PY" unlock "\$PAM_CLEAN" >> "\$LOGFILE" 2>&1; then
+        echo "$(date) LIVE MATCH SUCCESS: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
+        rm -f "\$CACHE"
+        exit 0
+    fi
+fi
+
+echo "\$(date) CACHE/LIVE MISS: cache=\$CACHE_USER pam=\$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
 rm -f "\$CACHE"
 exit 1
 PAMSCRIPT
@@ -861,14 +874,11 @@ NOVA_DAEMON="$DAEMON_SCRIPT_PATH"
     xfconf-query -c xfwm4 -p /general/use_compositing -s true 2>/dev/null
 
     launch_face_ui() {
-    nohup "\$NOVA_VENV/bin/python3" "\$NOVA_DAEMON" \\
-        >>/tmp/nova_lock_ui.out 2>>/tmp/nova_lock_ui.err &
-    echo "Daemon pid=\$!" >> "\$LOG"
-}
+        nohup "\$NOVA_VENV/bin/python3" "\$NOVA_DAEMON" \
+            >>/tmp/nova_lock_ui.out 2>>/tmp/nova_lock_ui.err &
+        echo "Daemon pid=\$!" >> "\$LOG"
+    }
     launch_face_ui
-    nohup "\$NOVA_VENV/bin/python3" "\$NOVA_DAEMON" \\
-        >>/tmp/nova_lock_ui.out 2>>/tmp/nova_lock_ui.err &
-    echo "Daemon pid=\$!" >> "\$LOG"
 ) &
 
 # BUG 5 FIX: Detect DE at runtime, not baked-in installer time
@@ -1006,18 +1016,18 @@ DBUS_IFACE="$DBUS_IFACE"
 # user, only if the marker is fresh (<60s).
 show_login_hello() {
     local MARKER="/var/lib/novaunlock/last_login_user"
-    [ -f "$MARKER" ] || return 0
+    [ -f "\$MARKER" ] || return 0
     local user ts now_s age
-    user=$(sed -n '1p' "$MARKER" 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-    ts=$(sed -n '2p'  "$MARKER" 2>/dev/null | tr -d '[:space:]')
-    [ -n "$user" ] || { rm -f "$MARKER"; return 0; }
-    case "$ts" in (*[!0-9]*) rm -f "$MARKER"; return 0 ;; esac
-    now_s=$(date +%s)
-    age=$(( now_s - ts ))
-    [ "$age" -le 60 ] || { rm -f "$MARKER"; return 0; }
-    [ "$user" = "$(id -un)" ] || { rm -f "$MARKER"; return 0; }
-    rm -f "$MARKER"
-    NOVA_ROOT="${NOVA_DIR:-/opt/novaunlock}" "$VENV/bin/python3" - "$user" << 'HELLO'
+    user=\$(sed -n '1p' "\$MARKER" 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    ts=\$(sed -n '2p'  "\$MARKER" 2>/dev/null | tr -d '[:space:]')
+    [ -n "\$user" ] || { rm -f "\$MARKER"; return 0; }
+    case "\$ts" in (*[!0-9]*) rm -f "\$MARKER"; return 0 ;; esac
+    now_s=\$(date +%s)
+    age=\$(( now_s - ts ))
+    [ "\$age" -le 60 ] || { rm -f "\$MARKER"; return 0; }
+    [ "\$user" = "\$(id -un)" ] || { rm -f "\$MARKER"; return 0; }
+    rm -f "\$MARKER"
+    NOVA_ROOT="${NOVA_DIR:-/opt/novaunlock}" "$VENV/bin/python3" - "\$user" << 'HELLO'
 import sys, os
 sys.path.insert(0, os.environ.get("NOVA_ROOT", "/opt/novaunlock"))
 try:
@@ -1048,14 +1058,14 @@ run_monitor() {
 
         if echo "\$LINE" | grep -q "boolean true"; then
             echo "\$(date) LOCKED" >> "\$WLOG"
-            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+            pkill -f "face_unlock_daemon" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
             sleep 0.8
             "\$VENV_PY" "\$DAEMON" >> "\$FLOG" 2>&1 &
 
         elif echo "\$LINE" | grep -q "boolean false"; then
             echo "\$(date) UNLOCKED" >> "\$WLOG"
-            pkill -f "face_unlock_daemon.pyc" 2>/dev/null
+            pkill -f "face_unlock_daemon" 2>/dev/null
             rm -f /tmp/nova_unlock_face.lock
         fi
     done

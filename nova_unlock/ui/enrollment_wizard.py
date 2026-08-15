@@ -16,7 +16,7 @@ from typing import Optional
 
 import numpy as np
 
-from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit
 from PyQt5.QtCore    import (Qt, QTimer, QPointF, QRectF,
                               pyqtSignal, QObject, QThread)
 from PyQt5.QtGui     import (QPainter, QColor, QPen, QFont,
@@ -247,6 +247,55 @@ def smootherstep(t: float) -> float:
 
 
 # ════════════════════════════════════════════════════════════════
+#  SYSTEM USER DETECTION + PASSWORD VERIFICATION
+# ════════════════════════════════════════════════════════════════
+def detect_system_users() -> list:
+    """Detect all real system users. Called fresh every wizard launch."""
+    try:
+        import pwd
+        users = []
+        for p in pwd.getpwall():
+            if (p.pw_dir.startswith("/home") and
+                    os.path.exists(p.pw_dir) and
+                    p.pw_uid >= 1000):
+                users.append({
+                    "username": p.pw_name,
+                    "uid":      p.pw_uid,
+                    "home":     p.pw_dir,
+                    "fullname": (p.pw_gecos.split(",")[0] if p.pw_gecos else p.pw_name),
+                })
+        return users
+    except ImportError:
+        uname = os.environ.get("USER", "user")
+        return [{"username": uname, "uid": 1000,
+                 "home": str(Path.home()), "fullname": uname}]
+
+
+def check_enrolled(username: str) -> bool:
+    """Check if a user already has a face profile enrolled."""
+    try:
+        from nova_unlock.vision.face_recognizer import is_enrolled
+        return is_enrolled(username)
+    except Exception:
+        return False
+
+
+def verify_password(username: str, password: str) -> bool:
+    """Verify user password via su (PAM-backed)."""
+    try:
+        proc = subprocess.Popen(
+            ["su", "-", username, "-c", "exit 0"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        proc.communicate(input=(password + "\n").encode(), timeout=10)
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
+# ════════════════════════════════════════════════════════════════
 #  ARC SEGMENT (16 segments around circle)
 # ════════════════════════════════════════════════════════════════
 N_SEGMENTS = 32  # iOS Face ID exact
@@ -404,9 +453,14 @@ class EnrollmentWizard(QWidget):
                  theme: str = "auto", parent=None):
         super().__init__(parent)
 
-        self.username = username or os.environ.get("USERNAME", os.environ.get("USER", "user"))
-        # Samples = number of arc segments (16)
-        self.samples_needed = N_SEGMENTS  # 1 sample = 1 arc (iOS exact)
+        self._direct_user = username
+        self.username = username or ""
+        self.samples_needed = N_SEGMENTS
+
+        # Detect system users fresh every launch
+        self.system_users = detect_system_users()
+        for u in self.system_users:
+            u["enrolled"] = check_enrolled(u["username"])
 
         self.theme_name = theme
         self.p = get_palette(theme)
@@ -426,10 +480,28 @@ class EnrollmentWizard(QWidget):
         self.complete = False
         self.success = False
         self.error_msg = ""
-        self.phase = 0  # 0=appearing, 1=scanning, 2=success, 3=failed
+        # Phases: -2=user_select, -1=password, 0=appearing, 1=scanning,
+        #         2=success, 3=failed
+        self.phase = 0 if self._direct_user else -2
+
+        # ── User selection state (phase -2) ──
+        self.user_hovered_idx = -1
+        self.user_select_t = 0.0
+        self.user_card_springs = [Spring(7.0) for _ in self.system_users]
+
+        # ── Password verification state (phase -1) ──
+        self.pwd_error = False
+        self.pwd_error_t = 0.0
+        self.pwd_error_msg = ""
+        self.pwd_verify_hover = False
+        self.pwd_verify_press = False
+        self.pwd_back_hover = False
+        self.pwd_appear_t = 0.0
+        self.pwd_verifying = False
+        self.pwd_btn_spring = Spring(7.0)
 
         # Arc activation timestamps (when each segment lit up)
-        self.arc_activated_t = [0.0] * N_SEGMENTS  # 0 = not yet active
+        self.arc_activated_t = [0.0] * N_SEGMENTS
 
         # Appearance
         self.appear_t = 0.0
@@ -458,15 +530,13 @@ class EnrollmentWizard(QWidget):
         self.cancel_press = False
         self.cancel_spring = Spring(7.0)
 
-        # Worker
+        # Worker (created when user confirmed)
         self.signals = WorkerSignals()
         self.signals.frame_ready.connect(self._on_frame)
         self.signals.sample_captured.connect(self._on_sample)
         self.signals.face_detected.connect(self._on_face)
         self.signals.finished.connect(self._on_finished)
-
-        self.worker = EnrollmentWorker(
-            self.signals, self.username, self.samples_needed)
+        self.worker = None
 
         # Window
         self.setWindowTitle("Nova · Face ID")
@@ -478,15 +548,113 @@ class EnrollmentWizard(QWidget):
         self.setStyleSheet(
             f"background-color: rgb({bg.red()},{bg.green()},{bg.blue()});")
 
+        # ── Password input (styled, hidden until phase -1) ──
+        self.pwd_input = QLineEdit(self)
+        self.pwd_input.setEchoMode(QLineEdit.Password)
+        self.pwd_input.setPlaceholderText("Password")
+        self.pwd_input.setAlignment(Qt.AlignCenter)
+        self.pwd_input.setFixedSize(320, 46)
+        self.pwd_input.move((self.W - 320) // 2, 370)
+        self.pwd_input.hide()
+        self.pwd_input.returnPressed.connect(self._verify_password)
+        self._style_pwd_input()
+
         self._tmr = QTimer(self)
         self._tmr.timeout.connect(self._tick)
         self._tmr.start(16)
 
-        QTimer.singleShot(900, self._start_worker)
+        if self.phase == 0:
+            QTimer.singleShot(900, self._start_worker)
+
+    # ────────────────────────────────────────────────────────
+    def _style_pwd_input(self):
+        if self.is_dark or self.is_pure_black:
+            self.pwd_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: rgba(255,255,255,10);
+                    border: 1px solid rgba(255,255,255,18);
+                    border-radius: 12px;
+                    color: #ffffff;
+                    font-size: 15px;
+                    font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+                    padding: 10px 20px;
+                }
+                QLineEdit:focus {
+                    border: 1.5px solid rgba(10,132,255,160);
+                    background-color: rgba(255,255,255,14);
+                }
+            """)
+        else:
+            self.pwd_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: rgba(0,0,0,5);
+                    border: 1px solid rgba(0,0,0,10);
+                    border-radius: 12px;
+                    color: #0a0e16;
+                    font-size: 15px;
+                    font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+                    padding: 10px 20px;
+                }
+                QLineEdit:focus {
+                    border: 1.5px solid rgba(0,122,255,140);
+                }
+            """)
+
+    def _select_user(self, idx):
+        """User selected a card — move to password phase."""
+        if 0 <= idx < len(self.system_users):
+            self.username = self.system_users[idx]["username"]
+            self.phase = -1
+            self.pwd_appear_t = 0.0
+            self.pwd_error = False
+            self.pwd_error_msg = ""
+            self.pwd_input.clear()
+            self.pwd_input.show()
+            self.pwd_input.setFocus()
+
+    def _verify_password(self):
+        """Verify the entered password for selected user."""
+        pwd_text = self.pwd_input.text()
+        if not pwd_text or self.pwd_verifying:
+            return
+        self.pwd_verifying = True
+        self.pwd_error = False
+        self.update()
+        # Run in background to avoid blocking UI
+        QTimer.singleShot(50, lambda: self._do_verify(pwd_text))
+
+    def _do_verify(self, pwd_text):
+        ok = verify_password(self.username, pwd_text)
+        self.pwd_verifying = False
+        if ok:
+            self.pwd_input.hide()
+            self.phase = 0
+            self.t_start = time.time()
+            self.t_last = self.t_start
+            self.appear_t = 0.0
+            QTimer.singleShot(900, self._start_worker)
+        else:
+            self.pwd_error = True
+            self.pwd_error_t = time.time()
+            self.pwd_error_msg = "Incorrect password"
+            self.pwd_input.selectAll()
+            self.pwd_input.setFocus()
+        self.update()
+
+    def _go_back_to_select(self):
+        """Return from password screen to user selection."""
+        self.pwd_input.hide()
+        self.pwd_input.clear()
+        self.phase = -2
+        self.user_select_t = 0.0
+        self.username = ""
 
     def _start_worker(self):
-        if self.phase != 0: return
+        if self.phase != 0:
+            return
         self.phase = 1
+        self.worker = EnrollmentWorker(
+            self.signals, self.username, self.samples_needed)
         self.worker.start()
 
     # ────────────────────────────────────────────────────────
@@ -524,6 +692,25 @@ class EnrollmentWizard(QWidget):
         dt = min(now - self.t_last, 0.05)
         self.t_last = now
 
+        # ── Phase -2: User Selection ──
+        if self.phase == -2:
+            self.user_select_t += dt
+            for i, spr in enumerate(self.user_card_springs):
+                target = 1.02 if i == self.user_hovered_idx else 1.0
+                spr.update(dt, target)
+            self.update()
+            return
+
+        # ── Phase -1: Password ──
+        if self.phase == -1:
+            self.pwd_appear_t += dt
+            t_btn = 1.02 if self.pwd_verify_hover else 1.0
+            if self.pwd_verify_press: t_btn = 0.97
+            self.pwd_btn_spring.update(dt, t_btn)
+            self.update()
+            return
+
+        # ── Existing phases 0–3 ──
         # Appear
         self.appear_t += dt
         T = 0.55
@@ -572,15 +759,21 @@ class EnrollmentWizard(QWidget):
         try: P.setRenderHint(QPainter.HighQualityAntialiasing, True)
         except: pass
 
-        self._paint_bg(P)
-        self._paint_pill(P)
-        self._paint_camera(P)
-        self._paint_arc_segments(P)  # The 16 arcs around face
-        self._paint_text(P)
-        self._paint_button(P)
-
-        if self.phase == 2:
-            self._paint_success(P)
+        if self.phase == -2:
+            self._paint_bg(P)
+            self._paint_user_select(P)
+        elif self.phase == -1:
+            self._paint_bg(P)
+            self._paint_password_screen(P)
+        else:
+            self._paint_bg(P)
+            self._paint_pill(P)
+            self._paint_camera(P)
+            self._paint_arc_segments(P)
+            self._paint_text(P)
+            self._paint_button(P)
+            if self.phase == 2:
+                self._paint_success(P)
 
         P.end()
 
@@ -953,40 +1146,306 @@ class EnrollmentWizard(QWidget):
         P.restore()
 
     # ────────────────────────────────────────────────────────
+    # NEW PHASES (USER SELECT & PASSWORD)
+    # ────────────────────────────────────────────────────────
+    def _paint_user_select(self, P):
+        """Phase -2: Dynamic User Selection Screen"""
+        # Cancel button top-left
+        self.progress["button"] = 1.0  # Force button opacity
+        self._paint_button(P)
+
+        # Entrance animation
+        t = self.user_select_t
+        prog = ease_out_quint(min(t / 0.6, 1.0))
+        if prog < 0.01: return
+
+        # Title
+        font = Type.font(Type.HERO)
+        P.setFont(font)
+        color = QColor(self.p.text)
+        color.setAlpha(int(255 * prog))
+        P.setPen(QPen(color))
+        text = "Choose Account"
+        fm = P.fontMetrics()
+        tw = fm.horizontalAdvance(text)
+        y = 120 + (1.0 - prog) * 20
+        P.drawText(int(self.W/2 - tw/2), int(y), text)
+
+        # Subtitle
+        font = Type.font(Type.BODY, text=True)
+        P.setFont(font)
+        color = QColor(self.p.text_dim)
+        color.setAlpha(int(255 * prog))
+        P.setPen(QPen(color))
+        sub = "Select a user to set up Face ID"
+        fm = P.fontMetrics()
+        tw = fm.horizontalAdvance(sub)
+        P.drawText(int(self.W/2 - tw/2), int(y + 30), sub)
+
+        # User Cards
+        card_w = 340
+        card_h = 76
+        start_y = 220
+        spacing = 16
+
+        for i, user in enumerate(self.system_users):
+            cx = (self.W - card_w) / 2
+            cy = start_y + i * (card_h + spacing)
+            
+            # Staggered entrance
+            delay = 0.1 + i * 0.08
+            local_t = max(0, t - delay)
+            cprog = ease_out_quint(min(local_t / 0.5, 1.0))
+            if cprog < 0.01: continue
+            
+            cy += (1.0 - cprog) * 30
+            P.setOpacity(cprog)
+            
+            # Draw Glass Card
+            scale = self.user_card_springs[i].x
+            
+            P.save()
+            P.translate(cx + card_w/2, cy + card_h/2)
+            P.scale(scale, scale)
+            P.translate(-(cx + card_w/2), -(cy + card_h/2))
+            
+            is_hover = (i == self.user_hovered_idx)
+            tint = None
+            if is_hover:
+                tint = QColor(255, 255, 255, 10) if self.is_dark else QColor(0, 0, 0, 10)
+                
+            draw_glass_pill(P, cx, cy, card_w, card_h, 
+                            tint=tint, border_alpha=30, fill_alpha=20, shadow=True)
+            
+            # Avatar Circle
+            ar = 24
+            ax = cx + 20 + ar
+            ay = cy + card_h/2
+            
+            avatar_grad = QLinearGradient(ax - ar, ay - ar, ax + ar, ay + ar)
+            avatar_grad.setColorAt(0.0, QColor(40, 145, 255))
+            avatar_grad.setColorAt(1.0, QColor(0, 100, 220))
+            P.setBrush(QBrush(avatar_grad))
+            P.setPen(Qt.NoPen)
+            P.drawEllipse(QPointF(ax, ay), ar, ar)
+            
+            # Avatar Initial
+            initial = user["fullname"][0].upper() if user["fullname"] else user["username"][0].upper()
+            P.setFont(Type.font((20, QFont.Bold, 0.0)))
+            P.setPen(QPen(QColor(255, 255, 255)))
+            fm = P.fontMetrics()
+            tw = fm.horizontalAdvance(initial)
+            P.drawText(int(ax - tw/2), int(ay + fm.height()/3), initial)
+            
+            # Names
+            text_x = ax + ar + 16
+            
+            P.setFont(Type.font(Type.BUTTON))
+            P.setPen(QPen(self.p.text))
+            fm = P.fontMetrics()
+            P.drawText(int(text_x), int(cy + card_h/2 - 4), user["fullname"] or user["username"])
+            
+            P.setFont(Type.font(Type.MICRO))
+            P.setPen(QPen(self.p.text_dim))
+            P.drawText(int(text_x), int(cy + card_h/2 + 16), "@" + user["username"])
+            
+            # Enrolled Badge
+            if user.get("enrolled"):
+                bx = cx + card_w - 24
+                # Professional badge (not dreamy): simple green text + check
+                P.setFont(Type.font((11, QFont.DemiBold, 0.0)))
+                P.setPen(QPen(self.p.green))
+                badge_txt = "Enrolled  ✓"
+                fm = P.fontMetrics()
+                bw = fm.horizontalAdvance(badge_txt)
+                P.drawText(int(bx - bw), int(cy + card_h/2 + 5), badge_txt)
+            
+            P.restore()
+        
+        P.setOpacity(1.0)
+
+
+    def _paint_password_screen(self, P):
+        """Phase -1: Password Verification Screen"""
+        t = self.pwd_appear_t
+        prog = ease_out_quint(min(t / 0.5, 1.0))
+        if prog < 0.01: return
+
+        P.setOpacity(prog)
+
+        # Back button top-left
+        font = Type.font(Type.BUTTON)
+        P.setFont(font)
+        color = self.p.blue if not self.pwd_back_hover else self.p.text_quiet
+        P.setPen(QPen(color))
+        P.drawText(28, 52, "Back")
+
+        y_offset = (1.0 - prog) * 20
+
+        # Lock Icon
+        icon_y = 120 + y_offset
+        self._draw_lock(P, self.W/2, icon_y, 48, self.p.text)
+
+        # Title
+        font = Type.font(Type.HERO)
+        P.setFont(font)
+        P.setPen(QPen(self.p.text))
+        text = "Enter Password"
+        fm = P.fontMetrics()
+        tw = fm.horizontalAdvance(text)
+        P.drawText(int(self.W/2 - tw/2), int(icon_y + 60), text)
+
+        # Subtitle
+        font = Type.font(Type.BODY, text=True)
+        P.setFont(font)
+        P.setPen(QPen(self.p.text_dim))
+        sub = f"Verify your identity for @{self.username}"
+        fm = P.fontMetrics()
+        tw = fm.horizontalAdvance(sub)
+        P.drawText(int(self.W/2 - tw/2), int(icon_y + 90), sub)
+
+        # Error Message (if any)
+        if self.pwd_error:
+            # Shake animation
+            shake_t = time.time() - self.pwd_error_t
+            shake_x = 0
+            if shake_t < 0.4:
+                shake_x = math.sin(shake_t * 40) * (8 * (1.0 - shake_t/0.4))
+            
+            # Adjust input box position if shaking
+            self.pwd_input.move(int((self.W - 320) // 2 + shake_x), 370)
+            
+            P.setFont(Type.font(Type.MICRO))
+            P.setPen(QPen(self.p.red))
+            fm = P.fontMetrics()
+            tw = fm.horizontalAdvance(self.pwd_error_msg)
+            P.drawText(int(self.W/2 - tw/2), 440, self.pwd_error_msg)
+        else:
+            self.pwd_input.move((self.W - 320) // 2, 370)
+
+        # Verify Button
+        btn_w = 320
+        btn_h = 48
+        btn_x = (self.W - btn_w) / 2
+        btn_y = 460
+        
+        scale = self.pwd_btn_spring.x
+        
+        P.save()
+        P.translate(btn_x + btn_w/2, btn_y + btn_h/2)
+        P.scale(scale, scale)
+        P.translate(-(btn_x + btn_w/2), -(btn_y + btn_h/2))
+        
+        draw_glass_button(P, btn_x, btn_y, btn_w, btn_h, 
+                          self.p.blue, hover=self.pwd_verify_hover, pressed=self.pwd_verify_press)
+        
+        P.setFont(Type.font(Type.BUTTON))
+        P.setPen(QPen(QColor(255, 255, 255)))
+        fm = P.fontMetrics()
+        btn_txt = "Verifying..." if self.pwd_verifying else "Continue"
+        tw = fm.horizontalAdvance(btn_txt)
+        P.drawText(int(btn_x + btn_w/2 - tw/2), int(btn_y + btn_h/2 + 5), btn_txt)
+        
+        P.restore()
+
+        P.setOpacity(1.0)
+
+    # ────────────────────────────────────────────────────────
     # INTERACTIONS
     # ────────────────────────────────────────────────────────
     def _in_cancel(self, x, y):
         return 20 <= x <= 90 and 32 <= y <= 68
 
     def _in_accessibility(self, x, y):
-        # Bottom-center clickable area for "Accessibility Options"
         return (self.W/2 - 110) <= x <= (self.W/2 + 110) and 640 <= y <= 680
+
+    def _get_hovered_user_card(self, x, y):
+        if self.phase != -2: return -1
+        card_w, card_h, spacing = 340, 76, 16
+        start_y = 220
+        cx = (self.W - card_w) / 2
+        for i in range(len(self.system_users)):
+            cy = start_y + i * (card_h + spacing)
+            if cx <= x <= cx + card_w and cy <= y <= cy + card_h:
+                return i
+        return -1
+
+    def _in_verify_btn(self, x, y):
+        if self.phase != -1: return False
+        btn_w, btn_h = 320, 48
+        btn_x, btn_y = (self.W - btn_w) / 2, 460
+        return btn_x <= x <= btn_x + btn_w and btn_y <= y <= btn_y + btn_h
 
     def mouseMoveEvent(self, e):
         x, y = e.x(), e.y()
         self.cancel_hover = self._in_cancel(x, y)
-        if self.cancel_hover or self._in_accessibility(x, y):
+        self.user_hovered_idx = self._get_hovered_user_card(x, y)
+        self.pwd_verify_hover = self._in_verify_btn(x, y)
+        self.pwd_back_hover = self.cancel_hover if self.phase == -1 else False
+
+        if self.cancel_hover or self.pwd_verify_hover or self.user_hovered_idx >= 0 or (self.phase >= 0 and self._in_accessibility(x, y)):
             self.setCursor(Qt.PointingHandCursor)
         else:
             self.setCursor(Qt.ArrowCursor)
 
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self._in_cancel(e.x(), e.y()):
+        if e.button() != Qt.LeftButton: return
+        x, y = e.x(), e.y()
+        if self._in_cancel(x, y):
             self.cancel_press = True
+            self.pwd_verify_press = False
+        elif self._in_verify_btn(x, y):
+            self.pwd_verify_press = True
+            self.cancel_press = False
 
     def mouseReleaseEvent(self, e):
         if e.button() != Qt.LeftButton: return
-        was = self.cancel_press
+        x, y = e.x(), e.y()
+        
+        was_cancel = self.cancel_press
+        was_verify = self.pwd_verify_press
         self.cancel_press = False
-        if was and self._in_cancel(e.x(), e.y()):
-            self._cancel()
+        self.pwd_verify_press = False
+
+        if was_cancel and self._in_cancel(x, y):
+            if self.phase == -1:
+                self._go_back_to_select()
+            else:
+                self._cancel()
             return
-        if self._in_accessibility(e.x(), e.y()):
+            
+        if self.phase == -2:
+            idx = self._get_hovered_user_card(x, y)
+            if idx >= 0:
+                if self.system_users[idx].get("enrolled"):
+                    # Show warning if re-enrolling
+                    from PyQt5.QtWidgets import QMessageBox
+                    box = QMessageBox(self)
+                    box.setWindowTitle("Already Enrolled")
+                    box.setText(f"Face ID is already set up for {self.system_users[idx]['username']}.")
+                    box.setInformativeText("Do you want to overwrite the existing face profile?")
+                    box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                    box.setDefaultButton(QMessageBox.Cancel)
+                    # Apply professional dark styling
+                    box.setStyleSheet("QMessageBox { background-color: #1c1c1e; color: #fff; } QMessageBox QLabel { color: #fff; } QPushButton { background-color: #0a84ff; color: white; padding: 6px 14px; border-radius: 6px; }")
+                    if box.exec_() != QMessageBox.Yes:
+                        return
+                self._select_user(idx)
+            return
+
+        if self.phase == -1 and was_verify and self._in_verify_btn(x, y):
+            self._verify_password()
+            return
+
+        if self.phase >= 0 and self._in_accessibility(x, y):
             self._show_accessibility()
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
-            self._cancel()
+            if self.phase == -1:
+                self._go_back_to_select()
+            else:
+                self._cancel()
 
     def _show_accessibility(self):
         """
@@ -1090,8 +1549,7 @@ class EnrollmentWizard(QWidget):
 def main():
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--user", default=os.environ.get("USERNAME",
-                                                      os.environ.get("USER", "user")))
+    ap.add_argument("--user", default=None, help="Skip selection and enroll specific user")
     ap.add_argument("--samples", type=int, default=N_SEGMENTS)
     ap.add_argument("--theme", default="auto",
                     choices=["auto", "dark", "light", "pure_black"])
