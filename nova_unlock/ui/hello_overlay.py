@@ -642,10 +642,10 @@ class JarvisOverlay(Gtk.Window):
 
         # ── Layout & Screen Centering ──────────────────────────────────
         # SVG viewBox is 900x300, hello path uses x:170-727 = ~557 wide
-        # Elegant responsive scaling centered on 1920x1200 / 4K display resolutions
-        target_hello_w = min(w * 0.54, 1100)
+        # Proportioned Apple welcome layout: hello ~34% of screen width
+        target_hello_w = min(w * 0.34, 660)
         path_native_w = 727 - 170  # ~557
-        scale = max(0.6, target_hello_w / float(path_native_w))
+        scale = max(0.55, target_hello_w / float(path_native_w))
 
         scaled_path_w = path_native_w * scale
 
@@ -654,19 +654,20 @@ class JarvisOverlay(Gtk.Window):
             cairo.FONT_SLANT_ITALIC,
             cairo.FONT_WEIGHT_NORMAL
         )
-        font_size = int(162 * scale)
+        font_size = int(125 * scale)
         cr.set_font_size(font_size)
         suffix_ext = cr.text_extents(suffix_text)
-        suffix_w = suffix_ext.width
+        suffix_w = suffix_ext.x_advance or suffix_ext.width
 
-        # Exact bounding box calculation for perfect horizontal & vertical centering
-        total_w = scaled_path_w + suffix_w
+        # Exact total bounding width of combined phrase "hello, username"
+        total_w = scaled_path_w + (14.0 * scale) + suffix_w
         left_margin = (w - total_w) / 2.0
         ox = left_margin - 170.0 * scale
 
-        # Full bounding box native vertical midpoint = 143.5 units (y_min: 65, y_max: 222)
-        # Center the combined bounding box dead-center on display screen height (h / 2.0)
-        oy = (h / 2.0) - (143.5 * scale)
+        # Phrase vertical midpoint = 140.0 native units
+        # Center the phrase dead-center on screen height (h / 2.0)
+        oy = (h / 2.0) - (140.0 * scale)
+
 
 
         # ── Write progress for hello path ─────────────────────────────

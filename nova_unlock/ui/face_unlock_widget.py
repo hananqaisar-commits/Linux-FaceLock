@@ -1,13 +1,6 @@
-#!/usr/bin/env python3
-"""
-NovaUnlock — Authentic iOS Dynamic Island Face ID
-- SCAN: Lock 🔒 + Camera ⚪ icons
-- SUCCESS: Realistic green 3D wireframe sphere (like real iOS)
-           Lock simultaneously animates to UNLOCKED 🔓
-           Screen unlocks ONLY after full animation complete
-- FAIL: Island shakes left-right smoothly
-"""
-import sys, math, time, struct, wave, tempfile, os, subprocess, random
+import os, sys, math, time, struct, wave, tempfile, subprocess, random
+os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+
 from pathlib import Path
 from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtCore    import (Qt, QTimer, QPointF, QRectF,
