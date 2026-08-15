@@ -641,8 +641,8 @@ class JarvisOverlay(Gtk.Window):
 
         # ── Layout & Screen Centering ──────────────────────────────────
         # SVG viewBox is 900x300, hello path uses x:170-727 = ~557 wide
-        # Elegant responsive scaling centered on any display resolution
-        target_hello_w = min(w * 0.36, 760)
+        # Elegant responsive scaling centered on 1920x1200 / 4K display resolutions
+        target_hello_w = min(w * 0.54, 1100)
         path_native_w = 727 - 170  # ~557
         scale = max(0.6, target_hello_w / float(path_native_w))
 
@@ -653,7 +653,7 @@ class JarvisOverlay(Gtk.Window):
             cairo.FONT_SLANT_ITALIC,
             cairo.FONT_WEIGHT_NORMAL
         )
-        font_size = int(158 * scale)
+        font_size = int(162 * scale)
         cr.set_font_size(font_size)
         suffix_ext = cr.text_extents(suffix_text)
         suffix_w = suffix_ext.width
@@ -663,10 +663,9 @@ class JarvisOverlay(Gtk.Window):
         left_margin = (w - total_w) / 2.0
         ox = left_margin - 170.0 * scale
 
-        # SVG path height is roughly 145 native units (y: 65 to 210)
-        # Center the path and text vertically dead-center on screen (h / 2)
-        oy = (h / 2.0) - (142.0 * scale)
-
+        # SVG path native vertical midpoint = 137.5 units (y: 65 to 210)
+        # Center the phrase dead-center on screen height (h / 2.0)
+        oy = (h / 2.0) - (137.5 * scale)
 
         # ── Write progress for hello path ─────────────────────────────
         if phase < HELLO_WRITE:
@@ -679,7 +678,7 @@ class JarvisOverlay(Gtk.Window):
         # ── Draw hello SVG path stroke ────────────────────────────────
         cr.save()
         cr.set_source_rgba(1, 1, 1, alpha)
-        cr.set_line_width(7 * scale)
+        cr.set_line_width(8.5 * scale)
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.set_line_join(cairo.LINE_JOIN_ROUND)
 
@@ -690,7 +689,7 @@ class JarvisOverlay(Gtk.Window):
         # Soft glow under path (Apple's filter effect)
         cr.save()
         cr.set_source_rgba(1, 1, 1, alpha * 0.25)
-        cr.set_line_width(14 * scale)
+        cr.set_line_width(16.0 * scale)
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.set_line_join(cairo.LINE_JOIN_ROUND)
         self._draw_hello_path_partial(cr, scale, ox, oy, hello_progress)
@@ -710,7 +709,7 @@ class JarvisOverlay(Gtk.Window):
                 # Position suffix right after hello path end
                 # Hello path ends near x=727 (last point)
                 suffix_x = ox + 727 * scale + 12 * scale
-                suffix_y = oy + 200 * scale  # baseline align with hello
+                suffix_y = oy + 192 * scale  # baseline align with hello
 
                 # Reveal suffix via clip
                 cr.save()
@@ -718,6 +717,7 @@ class JarvisOverlay(Gtk.Window):
                 cr.rectangle(suffix_x - 2, suffix_y - font_size,
                              clip_w, font_size * 1.6)
                 cr.clip()
+
 
                 cr.set_source_rgba(1, 1, 1, alpha)
                 cr.move_to(suffix_x, suffix_y)
@@ -1209,9 +1209,10 @@ class JarvisOverlay(Gtk.Window):
             self._state        = "hello"
             self._hello_phase  = 0.0
             self._target_op    = 1.0
-            self._opacity      = max(self._opacity, 0.3)
-            self._slide_y      = SLIDE_DISTANCE * 0.5
+            self._opacity      = 1.0
+            self._slide_y      = 0.0
             self._target_sy    = 0.0
+
             if not self._visible:
                 self.show_all()
                 self._visible = True
