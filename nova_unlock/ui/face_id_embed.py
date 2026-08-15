@@ -205,6 +205,23 @@ class FaceUnlockWidget(QWidget):
         self._tmr = QTimer()
         self._tmr.timeout.connect(self._tick)
         self._tmr.start(16)
+        self.move_to_top_center()
+
+    def move_to_top_center(self):
+        try:
+            app = QApplication.instance()
+            if app and app.primaryScreen():
+                scr = app.primaryScreen().availableGeometry()
+                x = scr.x() + (scr.width() - self.W) // 2
+                y = scr.y() + 10
+                self.setGeometry(x, y, self.W, self.H)
+        except Exception:
+            pass
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.move_to_top_center()
+
 
     def _on_ok(self, n):
         if self.ph == self.OK: return
@@ -922,8 +939,13 @@ class FaceIDLoginApp:
         app = QApplication.instance() or QApplication(sys.argv)
         sig = Sig()
         w = FaceUnlockWidget(sig, demo_mode=False)
-        scr = app.primaryScreen().availableGeometry()
-        w.move(scr.x() + (scr.width() - w.W) // 2, scr.y() + 10)
+        w.move_to_top_center()
+        try:
+            from nova_unlock.ui.universal_embed import smart_embed
+            smart_embed(w, y_pos=10)
+        except Exception:
+            pass
+        w.move_to_top_center()
         w.show(); w.raise_(); w.activateWindow()
 
         def force_top():
@@ -932,6 +954,7 @@ class FaceIDLoginApp:
                 subprocess.run(["xdotool", "windowraise", str(wid)],
                                capture_output=True, timeout=2)
             except: pass
+            w.move_to_top_center()
             w.raise_(); w.activateWindow()
 
         top = QTimer()
@@ -984,13 +1007,28 @@ def demo():
     app = QApplication(sys.argv)
     sig = Sig()
     w = FaceUnlockWidget(sig, demo_mode=True)
-    scr = app.primaryScreen().availableGeometry()
-    w.move(scr.x() + (scr.width() - w.W) // 2, scr.y() + 10)
-    w.show()
+    w.move_to_top_center()
+    try:
+        from nova_unlock.ui.universal_embed import smart_embed
+        smart_embed(w, y_pos=10)
+    except Exception:
+        pass
+    w.move_to_top_center()
+    w.show(); w.raise_(); w.activateWindow()
+
+    def force_top():
+        w.move_to_top_center()
+        w.raise_(); w.activateWindow()
+
+    top = QTimer()
+    top.timeout.connect(force_top)
+    top.start(300)
+
     print("🎬 Demo Mode: SUCCESS → FAIL → SUCCESS (auto-cycling)")
     print("   • Watch lock unlock alongside sphere animation")
     print("   • Press ESC to exit")
     app.exec_()
+
 
 
 if __name__ == "__main__":

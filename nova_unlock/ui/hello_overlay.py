@@ -182,7 +182,7 @@ class JarvisOverlay(Gtk.Window):
         self.set_skip_pager_hint(True)
         self.set_keep_above(True)
         self.set_accept_focus(False)
-        self.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
+        self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
         self.stick()
 
         display = Gdk.Display.get_default()
@@ -197,7 +197,7 @@ class JarvisOverlay(Gtk.Window):
             gx, gy = geo.x, geo.y
         else:
             self._sw = 1920
-            self._sh = 1080
+            self._sh = 1200
             gx, gy = 0, 0
 
         # Full screen for border effect
@@ -207,6 +207,7 @@ class JarvisOverlay(Gtk.Window):
         self.realize()
         region = cairo.Region(cairo.RectangleInt(0, 0, 0, 0))
         self.get_window().input_shape_combine_region(region, 0, 0)
+
 
     # ══════════════════════════════════════════════════════════════════════
     #  MAIN DRAW
@@ -663,9 +664,10 @@ class JarvisOverlay(Gtk.Window):
         left_margin = (w - total_w) / 2.0
         ox = left_margin - 170.0 * scale
 
-        # SVG path native vertical midpoint = 137.5 units (y: 65 to 210)
-        # Center the phrase dead-center on screen height (h / 2.0)
-        oy = (h / 2.0) - (137.5 * scale)
+        # Full bounding box native vertical midpoint = 143.5 units (y_min: 65, y_max: 222)
+        # Center the combined bounding box dead-center on display screen height (h / 2.0)
+        oy = (h / 2.0) - (143.5 * scale)
+
 
         # ── Write progress for hello path ─────────────────────────────
         if phase < HELLO_WRITE:
