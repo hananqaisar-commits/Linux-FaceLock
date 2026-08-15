@@ -21,7 +21,7 @@ from PyQt5.QtCore    import (Qt, QTimer, QPointF, QRectF,
                               pyqtSignal, QObject, QThread)
 from PyQt5.QtGui     import (QPainter, QColor, QPen, QFont,
                               QRadialGradient, QLinearGradient,
-                              QBrush, QPainterPath, QImage)
+                              QBrush, QPainterPath, QImage, QCursor)
 import sys as _sys
 from pathlib import Path as _Path
 _ROOT = _Path(__file__).parent.parent.parent
@@ -1070,19 +1070,40 @@ class EnrollmentWizard(QWidget):
 
         # ── Cancel (top-left) ──
         font = Type.font(Type.BUTTON)
+        font.setUnderline(self.cancel_hover)
         P.setFont(font)
-        color = self.p.blue if not self.cancel_press else self.p.text_quiet
+        if self.cancel_hover:
+            color = self.p.red
+        else:
+            color = self.p.blue if not self.cancel_press else self.p.text_quiet
         P.setPen(QPen(color))
         P.drawText(28, 52, "Cancel")
 
-        # ── Accessibility Options (bottom-center, iOS blue) ──
-        acc_font = Type.font(Type.BODY, text=True)
-        P.setFont(acc_font)
-        P.setPen(QPen(self.p.blue))
+        # ── Accessibility Options (bottom-center, glass pill) ──
         acc_text = "Accessibility Options"
+        acc_font = Type.font(Type.CALLOUT)
+        P.setFont(acc_font)
         fm = P.fontMetrics()
         tw = fm.horizontalAdvance(acc_text)
-        P.drawText(int(self.W/2 - tw/2), 660, acc_text)
+        
+        btn_w = tw + 40
+        btn_h = 36
+        btn_x = (self.W - btn_w) / 2
+        btn_y = 645
+        
+        # Determine hover state (accessible from mouse position)
+        cursor_pos = self.mapFromGlobal(QCursor.pos())
+        is_hover = btn_x <= cursor_pos.x() <= btn_x + btn_w and btn_y <= cursor_pos.y() <= btn_y + btn_h
+        
+        tint = QColor(255, 255, 255, 15) if self.is_dark else QColor(0, 0, 0, 10)
+        if is_hover:
+            tint = QColor(10, 132, 255, 40)
+            
+        draw_glass_pill(P, btn_x, btn_y, btn_w, btn_h, 
+                        tint=tint, border_alpha=30, fill_alpha=20, shadow=True)
+                        
+        P.setPen(QPen(self.p.blue))
+        P.drawText(int(btn_x + btn_w/2 - tw/2), int(btn_y + btn_h/2 + 4), acc_text)
 
         P.setOpacity(1.0)
 
@@ -1275,8 +1296,12 @@ class EnrollmentWizard(QWidget):
 
         # Back button top-left
         font = Type.font(Type.BUTTON)
+        font.setUnderline(self.pwd_back_hover)
         P.setFont(font)
-        color = self.p.blue if not self.pwd_back_hover else self.p.text_quiet
+        if self.pwd_back_hover:
+            color = self.p.red
+        else:
+            color = self.p.blue if not self.cancel_press else self.p.text_quiet
         P.setPen(QPen(color))
         P.drawText(28, 52, "Back")
 
@@ -1449,84 +1474,118 @@ class EnrollmentWizard(QWidget):
 
     def _show_accessibility(self):
         """
-        Friendly accessibility dialog.
+        Friendly accessibility dialog with professional custom UI.
         Explains options in plain language for new users.
         """
-        from PyQt5.QtWidgets import QMessageBox
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QPainter, QColor, QPainterPath
 
-        box = QMessageBox(self)
-        box.setWindowTitle("Quick Setup")
-        box.setIcon(QMessageBox.Question)
-        box.setTextFormat(1)  # Qt.RichText
+        class PremiumDialog(QDialog):
+            def __init__(self, parent_widget, is_dark):
+                super().__init__(parent_widget)
+                self.is_dark = is_dark
+                self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+                self.setAttribute(Qt.WA_TranslucentBackground)
+                
+                # Setup layout
+                layout = QVBoxLayout(self)
+                layout.setContentsMargins(24, 28, 24, 24)
+                layout.setSpacing(16)
+                
+                # Title
+                title = QLabel("Having trouble moving your head?")
+                title.setFont(Type.font((18, QFont.Bold, -0.01)))
+                title.setStyleSheet("color: white;" if is_dark else "color: black;")
+                title.setWordWrap(True)
+                layout.addWidget(title)
+                
+                # Body
+                body_text = (
+                    "Normally you rotate your head slowly to capture your face from different angles.\n\n"
+                    "If that's difficult, we can set up Face ID with fewer samples — just hold your face still and look at the camera. "
+                    "You can always redo setup later."
+                )
+                body = QLabel(body_text)
+                body.setFont(Type.font(Type.BODY, text=True))
+                body.setStyleSheet("color: rgba(255,255,255,180);" if is_dark else "color: rgba(0,0,0,180);")
+                body.setWordWrap(True)
+                layout.addWidget(body)
+                
+                layout.addSpacing(10)
+                
+                # Buttons
+                btn_layout = QHBoxLayout()
+                btn_layout.setSpacing(12)
+                
+                self.btn_normal = QPushButton("Keep Normal Setup")
+                self.btn_normal.setCursor(Qt.PointingHandCursor)
+                self.btn_normal.setFont(Type.font(Type.BUTTON))
+                self.btn_normal.setFixedHeight(42)
+                
+                self.btn_quick = QPushButton("Use Quick Setup")
+                self.btn_quick.setCursor(Qt.PointingHandCursor)
+                self.btn_quick.setFont(Type.font(Type.BUTTON))
+                self.btn_quick.setFixedHeight(42)
+                
+                # Button Styling
+                if is_dark:
+                    self.btn_normal.setStyleSheet("""
+                        QPushButton { background-color: rgba(255,255,255,20); color: white; border-radius: 10px; }
+                        QPushButton:hover { background-color: rgba(255,255,255,30); }
+                    """)
+                else:
+                    self.btn_normal.setStyleSheet("""
+                        QPushButton { background-color: rgba(0,0,0,10); color: black; border-radius: 10px; }
+                        QPushButton:hover { background-color: rgba(0,0,0,20); }
+                    """)
+                    
+                self.btn_quick.setStyleSheet("""
+                    QPushButton { background-color: #0a84ff; color: white; border-radius: 10px; }
+                    QPushButton:hover { background-color: #409cff; }
+                """)
+                
+                self.btn_normal.clicked.connect(self.reject)
+                self.btn_quick.clicked.connect(self.accept)
+                
+                btn_layout.addWidget(self.btn_normal)
+                btn_layout.addWidget(self.btn_quick)
+                layout.addLayout(btn_layout)
+                
+                self.setFixedSize(360, 240)
 
-        box.setText(
-            "<b style='font-size:15px;'>"
-            "Having trouble moving your head?</b>")
+            def paintEvent(self, e):
+                P = QPainter(self)
+                P.setRenderHint(QPainter.Antialiasing)
+                path = QPainterPath()
+                path.addRoundedRect(self.rect(), 16, 16)
+                
+                # Premium Drop Shadow & Border
+                P.setPen(Qt.NoPen)
+                P.setBrush(QColor(0, 0, 0, 60))
+                P.drawRoundedRect(self.rect().adjusted(2, 6, -2, -2), 16, 16)
+                
+                # Background
+                bg_color = QColor(28, 28, 30, 245) if self.is_dark else QColor(250, 250, 250, 245)
+                P.setBrush(bg_color)
+                
+                # Thin Border
+                border_color = QColor(255, 255, 255, 30) if self.is_dark else QColor(0, 0, 0, 30)
+                P.setPen(QPen(border_color, 1))
+                P.drawPath(path)
 
-        box.setInformativeText(
-            "<p style='font-size:13px; color:#444;'>"
-            "Normally you rotate your head slowly to capture "
-            "your face from different angles.</p>"
-            "<p style='font-size:13px; color:#444;'>"
-            "If that\'s difficult, we can set up Face ID with "
-            "<b>fewer samples</b> — just hold your face still "
-            "and look at the camera.</p>"
-            "<p style='font-size:12px; color:#888;'>"
-            "You can always redo setup later.</p>")
+        dialog = PremiumDialog(self, self.is_dark)
+        
+        # Center dialog over the wizard
+        pos = self.mapToGlobal(self.rect().center())
+        dialog.move(pos.x() - dialog.width() // 2, pos.y() - dialog.height() // 2)
 
-        quick   = box.addButton("Use Quick Setup",
-                                QMessageBox.AcceptRole)
-        normal  = box.addButton("Keep Normal Setup",
-                                QMessageBox.RejectRole)
-        box.setDefaultButton(normal)
-
-        # Styling
-        box.setStyleSheet("""
-            QMessageBox {
-                background-color: #1c1c1e;
-                color: #ffffff;
-            }
-            QMessageBox QLabel {
-                color: #ffffff;
-                min-width: 340px;
-            }
-            QPushButton {
-                background-color: #0a84ff;
-                color: white;
-                border: none;
-                padding: 8px 18px;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 500;
-                min-width: 110px;
-            }
-            QPushButton:hover {
-                background-color: #339dff;
-            }
-            QPushButton[text="Keep Normal Setup"] {
-                background-color: #2c2c2e;
-                color: #ffffff;
-            }
-            QPushButton[text="Keep Normal Setup"]:hover {
-                background-color: #3a3a3c;
-            }
-        """)
-
-        box.exec_()
-
-        if box.clickedButton() == quick:
-            # Reduce samples to 8 for quick setup
+        if dialog.exec_() == QDialog.Accepted:
+            # Quick setup
             try:
                 new_count = 8
                 self.worker.samples_needed = new_count
                 print(f"[Nova] Quick Setup: {new_count} samples")
-
-                # Show brief on-screen confirmation
-                from PyQt5.QtWidgets import QMessageBox as _MB
-                _MB.information(
-                    self, "Quick Setup Enabled",
-                    "Just hold still and look at the camera.\n"
-                    "Setup will finish in a few seconds.")
             except Exception as e:
                 print(f"[Nova] Quick setup failed: {e}")
 
