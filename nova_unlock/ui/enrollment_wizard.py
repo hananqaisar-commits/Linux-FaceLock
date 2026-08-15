@@ -1558,12 +1558,15 @@ class EnrollmentWizard(QWidget):
                 P = QPainter(self)
                 P.setRenderHint(QPainter.Antialiasing)
                 path = QPainterPath()
-                path.addRoundedRect(self.rect(), 16, 16)
+                
+                from PyQt5.QtCore import QRectF
+                rect_f = QRectF(self.rect())
+                path.addRoundedRect(rect_f, 16, 16)
                 
                 # Premium Drop Shadow & Border
                 P.setPen(Qt.NoPen)
                 P.setBrush(QColor(0, 0, 0, 60))
-                P.drawRoundedRect(self.rect().adjusted(2, 6, -2, -2), 16, 16)
+                P.drawRoundedRect(rect_f.adjusted(2, 6, -2, -2), 16, 16)
                 
                 # Background
                 bg_color = QColor(28, 28, 30, 245) if self.is_dark else QColor(250, 250, 250, 245)
