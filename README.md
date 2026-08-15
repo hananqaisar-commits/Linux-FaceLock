@@ -23,7 +23,7 @@
 
 ## ⚡ Overview
 
-**Linux-FaceLock** is a next-generation, high-performance facial recognition lock screen integration for Linux desktop environments (GNOME, KDE Plasma, XFCE, LightDM, SDDM, GDM) and Windows. 
+**Linux-FaceLock** is a next-generation, high-performance facial recognition lock screen integration for Linux desktop environments (GNOME, KDE Plasma, XFCE, LightDM, SDDM, GDM) and Windows.
 
 Inspired by Apple's Dynamic Island aesthetics, it delivers **sub-second facial verification**, zero UI latency, smooth 60 FPS spring physics, interactive audio cues, and native Linux PAM stack security.
 
@@ -110,6 +110,13 @@ python3 -m nova_unlock.ui.face_id_embed
 To enroll your face biometric template and register it locally:
 ```bash
 python3 -m nova_unlock.ui.enrollment_wizard
+```
+### 3. Welcome Screen Demo
+To launch the interactive macOS-style hello welcome screen (with hello greeting, dynamic island animation, and chime sound):
+
+```bash
+python3 -m nova_unlock.ui.welcome_screen
+
 ```
 
 ---
