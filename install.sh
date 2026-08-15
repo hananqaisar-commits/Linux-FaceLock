@@ -485,7 +485,7 @@ fi
 if [ -x "\$VENV_PY" ] && [ -f "\$PAM_PY" ]; then
     echo "\$(date) LIVE FACE SCAN START: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
     if "\$VENV_PY" "\$PAM_PY" unlock "\$PAM_CLEAN" >> "\$LOGFILE" 2>&1; then
-        echo "$(date) LIVE MATCH SUCCESS: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
+        echo "\$(date) LIVE MATCH SUCCESS: \$PAM_CLEAN" >> "\$LOGFILE" 2>/dev/null
         rm -f "\$CACHE"
         exit 0
     fi
