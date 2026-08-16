@@ -1,3 +1,4 @@
+
 import os, sys, math, time, struct, wave, tempfile, subprocess, random
 os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
@@ -7,13 +8,16 @@ from PyQt5.QtCore    import (Qt, QTimer, QPointF, QRectF,
                               pyqtSignal, QObject, QThread)
 from PyQt5.QtGui     import (QPainter, QColor, QPen, QFont,
                               QRadialGradient, QLinearGradient,
-                              QBrush, QPainterPath)
+                              QBrush, QPainterPath, QConicalGradient)
 
 ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+# Golden Ratio constant — Apple's core design principle
+PHI = 1.6180339887
+
 # ══════════════════════════════════════════════════════════════
-# SOUND
+# SOUND  (unchanged tech — same generators, warmer envelopes)
 # ══════════════════════════════════════════════════════════════
 SDIR = tempfile.mkdtemp(prefix="nova_snd_")
 
@@ -58,6 +62,8 @@ def _bell(freq, dur, vol=0.4, rate=44100):
         env = math.exp(-t * 4.5) * vol
         s = math.sin(2 * math.pi * freq * t)
         s += math.sin(2 * math.pi * freq * 2.0 * t) * 0.3
+        # subtle 3rd partial for a softer Apple-like chime
+        s += math.sin(2 * math.pi * freq * 3.0 * t) * 0.12
         out.append(32767 * env * s * 0.5)
     return out
 
@@ -65,14 +71,20 @@ def mk_pop():
     return _wav("pop.wav", _whoosh(180, 800, 0.18, vol=0.15))
 
 def mk_ok():
-    lead = _pluck(1046.5, 0.50, vol=0.40)
-    peak = max(abs(x) for x in lead) if lead else 1
+    # Two-note ascending chime (C6 -> E6) = warmer success feel
+    lead = _pluck(1046.5, 0.42, vol=0.36)
+    tail = _pluck(1318.5, 0.50, vol=0.34)
+    n = min(len(lead), int(44100 * 0.10))
+    for i in range(n):
+        tail[i] += lead[len(lead) - n + i] * 0.5
+    combined = lead[:len(lead) - n] + tail
+    peak = max((abs(x) for x in combined), default=1)
     if peak > 30000:
-        lead = [x * 30000 / peak for x in lead]
-    return _wav("ok.wav", lead)
+        combined = [x * 30000 / peak for x in combined]
+    return _wav("ok.wav", combined)
 
 def mk_fail():
-    s = _bell(330, 0.18, 0.30) + _bell(247, 0.22, 0.30)
+    s = _bell(330, 0.16, 0.28) + _bell(247, 0.22, 0.28)
     return _wav("fail.wav", s)
 
 def mk_collapse():
@@ -103,7 +115,7 @@ def play(path):
 class Sig(QObject):
     ok = pyqtSignal(str)
     fail = pyqtSignal()
-    unlock_complete = pyqtSignal()  # emitted ONLY after sphere animation done
+    unlock_complete = pyqtSignal()
 
 class Spring:
     def __init__(self, mass=1.0, stiffness=180.0, damping=18.0):
@@ -123,6 +135,26 @@ class Spring:
         self.v += (dt / 6.0) * (dv1 + 2*dv2 + 2*dv3 + dv4)
         return self.x
 
+
+# ── Easing helpers (Apple-style motion curves) ────────────────
+def ease_out_quint(t):
+    return 1 - pow(1 - t, 5)
+
+def ease_in_out_cubic(t):
+    return 4 * t * t * t if t < 0.5 else 1 - pow(-2 * t + 2, 3) / 2
+
+def ease_out_back(t, s=1.70158):
+    t -= 1
+    return 1 + (s + 1) * t * t * t + s * t * t
+
+def smoothstep(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+
 # ══════════════════════════════════════════════════════════════
 # MAIN WIDGET
 # ══════════════════════════════════════════════════════════════
@@ -135,8 +167,9 @@ class FaceUnlockWidget(QWidget):
     W  = 420
     H  = 160
 
-    PILL_W = 280
-    PILL_H = 38
+    # Pill sized via golden ratio: width ≈ height * φ * a nice factor
+    PILL_H = 40
+    PILL_W = int(PILL_H * PHI * 4.33)   # ≈ 280 — keeps original footprint
     PILL_Y = 8
 
     def __init__(self, sig, demo_mode=False):
@@ -160,23 +193,27 @@ class FaceUnlockWidget(QWidget):
 
         # Lock state
         self.lock_alpha = 0.0
-        self.lock_open_prog = 0.0   # 0 = locked, 1 = unlocked (shackle up)
+        self.lock_open_prog = 0.0
 
         # Camera state
         self.cam_alpha  = 0.0
         self.cam_pulse_t = 0.0
         self.cam_fade_out = 0.0
 
+        # Scan sweep highlight (new, subtle)
+        self.scan_sweep = 0.0
+
         # 3D Sphere
         self.sphere_alpha  = 0.0
         self.sphere_scale  = 0.0
-        self.sphere_rot_x  = 0.0   # X axis (pitch)
-        self.sphere_rot_y  = 0.0   # Y axis (yaw)
-        self.sphere_rot_z  = 0.0   # Z axis (roll)
-        self.sphere_color  = [48, 209, 88]  # iOS authentic green
+        self.sphere_rot_x  = 0.0
+        self.sphere_rot_y  = 0.0
+        self.sphere_rot_z  = 0.0
+        self.sphere_color  = [48, 209, 88]   # iOS system green
+        self.sphere_spin_boost = 0.0         # extra spin on success burst
 
         self.widget_fade = 1.0
-        self._unlock_emitted = False  # only emit unlock once
+        self._unlock_emitted = False
 
         self._pending_ok = False
         self._pending_ok_user = None
@@ -214,7 +251,6 @@ class FaceUnlockWidget(QWidget):
         super().showEvent(event)
         self.move_to_top_center()
 
-
     def _on_ok(self, n):
         if self.ph == self.OK: return
         self._pending_ok_user = n
@@ -229,6 +265,7 @@ class FaceUnlockWidget(QWidget):
         self.nm = n
         self._pending_ok = False
         self._unlock_emitted = False
+        self.sphere_spin_boost = 1.0
         play(SND_OK)
 
     def _on_fail(self):
@@ -237,7 +274,7 @@ class FaceUnlockWidget(QWidget):
         self.ph = self.FAIL
         self.t0 = time.time()
         self.shake_t = 0.0
-        self.shake_amp = 14.0
+        self.shake_amp = 12.0
         play(SND_FAIL)
 
     def _tick(self):
@@ -251,17 +288,15 @@ class FaceUnlockWidget(QWidget):
         dt = max(0.006, self._sdt)
         p = now - self.t0
 
-        # Appear animation
+        # Appear animation — springy overshoot for premium feel
         self.appear_t += dt
         if self.appear_prog < 1.0:
-            T = 0.45
+            T = 0.42
             if self.appear_t >= T:
                 self.appear_prog = 1.0
             else:
                 t = self.appear_t / T
-                ease = 1 - pow(1 - t, 5)
-                bump = math.sin(t * math.pi) * 0.04 * math.exp(-t * 3)
-                self.appear_prog = min(1.04, ease + bump)
+                self.appear_prog = min(1.05, ease_out_back(t, s=1.25))
 
             if not self._pop_played and self.appear_t > 0.05:
                 play(SND_POP)
@@ -272,12 +307,16 @@ class FaceUnlockWidget(QWidget):
         # Shake decay
         if self.shake_t >= 0:
             self.shake_t += dt
-            T_SHAKE = 0.65
+            T_SHAKE = 0.60
             if self.shake_t >= T_SHAKE:
                 self.shake_t = -1.0
                 self.shake_amp = 0.0
             else:
-                self.shake_amp = 14.0 * math.exp(-self.shake_t * 5.0)
+                self.shake_amp = 12.0 * math.exp(-self.shake_t * 5.5)
+
+        # Success spin-boost decays smoothly
+        if self.sphere_spin_boost > 0:
+            self.sphere_spin_boost = max(0.0, self.sphere_spin_boost - dt * 1.6)
 
         if self.ph == self.IDLE:
             self._tick_idle(p, dt)
@@ -295,7 +334,7 @@ class FaceUnlockWidget(QWidget):
         self.cam_alpha  = min(1.0, self.appear_prog)
         self.lock_open_prog = 0.0
         self.widget_fade = 1.0
-        if p > 0.6 and self.appear_prog >= 0.95:
+        if p > 0.55 and self.appear_prog >= 0.95:
             self.ph = self.SCAN
             self.t0 = time.time()
 
@@ -306,10 +345,12 @@ class FaceUnlockWidget(QWidget):
         self.sphere_alpha = 0.0
         self.lock_open_prog = 0.0
 
+        # smooth left→right sweep highlight across the pill
+        self.scan_sweep = (self.scan_sweep + dt * 0.6) % 1.0
+
         if self._pending_ok and self._pending_ok_user:
             self._trigger_ok(self._pending_ok_user)
 
-        # Demo mode cycles
         if self.demo_mode:
             if self._demo_cycle == 0 and p > 2.0:
                 self._on_ok("Demo_User")
@@ -320,75 +361,64 @@ class FaceUnlockWidget(QWidget):
 
     def _tick_ok(self, p, dt):
         """
-        SUCCESS ANIMATION TIMELINE:
-        0.00 - 0.20s : Camera fades out
-        0.08 - 0.50s : Sphere grows in (left rotation 0 → 720°)
-        0.10 - 0.85s : Lock animates: locked → unlocked (synchronized)
-        0.85 - 1.30s : Hold: full sphere + open lock
-        1.30 - 1.70s : Everything fades out smoothly
-        1.70 - 1.85s : Widget closes / unlock screen
+        SUCCESS TIMELINE (tuned for smoother Apple pacing):
+        0.00-0.18s : Camera dissolves
+        0.05-0.30s : Sphere blooms in (ease-out-back)
+        0.08-0.38s : Lock opens (spring)
+        0.38-0.50s : Hold
+        0.50-0.78s : Graceful fade
+        0.78s      : emit unlock_complete
         """
         self.lock_alpha = 1.0
 
-        # ── Camera fade out (0 → 0.20s) ──
-        if p < 0.20:
-            self.cam_fade_out = p / 0.20
+        # Camera fade out
+        if p < 0.18:
+            self.cam_fade_out = smoothstep(p / 0.18)
         else:
             self.cam_fade_out = 1.0
         self.cam_alpha = max(0.0, 1.0 - self.cam_fade_out)
 
-        # ── Sphere appears (0.05 → 0.25s) ──
+        # Sphere bloom
         if p > 0.05:
-            t = min((p - 0.05) / 0.20, 1.0)
-            # Smooth quintic ease-out for scale
-            self.sphere_scale = 1 - pow(1 - t, 5)
-            # Alpha
+            t = min((p - 0.05) / 0.25, 1.0)
+            self.sphere_scale = ease_out_back(t, s=1.4)
             self.sphere_alpha = min(1.0, t * 2.2)
         else:
             self.sphere_scale = 0.0
             self.sphere_alpha = 0.0
 
-        # ── iOS authentic 3D rotation (tumbling motion) ──
-        # Real iOS sphere rotates on multiple axes simultaneously
-        # Like a ball tumbling through space — never repeats same view
-        self.sphere_rot_y += 13.0 * dt  # Main yaw (horizontal) — primary
-        self.sphere_rot_x += 5.9 * dt   # Pitch (vertical) — secondary
-        self.sphere_rot_z += 3.2 * dt   # Roll (twist) — subtle
+        # 3D tumbling — smoothed constant rates + success spin boost
+        boost = 1.0 + self.sphere_spin_boost * 2.2
+        self.sphere_rot_y += 12.5 * dt * boost
+        self.sphere_rot_x += 5.6  * dt * boost
+        self.sphere_rot_z += 3.0  * dt * boost
 
-        # ── Lock unlock animation (0.08 → 0.35s) ──
-        # Synchronized with sphere appearance
+        # Lock open (spring)
         if p > 0.08:
-            lock_t = min((p - 0.08) / 0.27, 1.0)
-            # Spring-like ease for the shackle lifting
-            self.lock_open_prog = 1 - pow(1 - lock_t, 3)
+            lock_t = min((p - 0.08) / 0.30, 1.0)
+            self.lock_open_prog = ease_out_back(lock_t, s=2.2)
+            self.lock_open_prog = max(0.0, min(1.0, self.lock_open_prog))
         else:
             self.lock_open_prog = 0.0
 
-        # ── Brief hold (0.35 → 0.45s) ──
-
-        # ── Fade out everything (0.45 → 0.70s) ──
-        if p > 0.45:
-            t2 = min((p - 0.45) / 0.25, 1.0)
-            fade = 1.0 - t2 * t2 * (3 - 2 * t2)
+        # Fade out
+        if p > 0.50:
+            t2 = min((p - 0.50) / 0.28, 1.0)
+            fade = 1.0 - smoothstep(t2)
             self.widget_fade = max(0.0, fade)
             self.sphere_alpha = fade
             self.lock_alpha = fade
 
-        # ── COMPLETE: emit unlock signal AFTER animation done ──
-        if p > 0.70 and not self._unlock_emitted:
+        if p > 0.78 and not self._unlock_emitted:
             self._unlock_emitted = True
-            # Now actually emit unlock — screen unlocks here
             try:
                 self.sig.unlock_complete.emit()
             except Exception:
                 pass
-
             if self.demo_mode:
                 self._demo_cycle = (self._demo_cycle + 1) % 3
-                # Reset after small delay
                 QTimer.singleShot(150, self._full_reset)
             else:
-                # Close window — unlock happens via signal
                 QTimer.singleShot(150, self.close)
 
     def _tick_fail(self, p, dt):
@@ -397,7 +427,7 @@ class FaceUnlockWidget(QWidget):
         self.sphere_alpha = 0.0
         self.lock_open_prog = 0.0
 
-        if p > 1.2:
+        if p > 1.1:
             if self.demo_mode:
                 self._demo_cycle = (self._demo_cycle + 1) % 3
                 self._full_reset()
@@ -428,6 +458,7 @@ class FaceUnlockWidget(QWidget):
         self.sphere_rot_x = 0.0
         self.sphere_rot_y = 0.0
         self.sphere_rot_z = 0.0
+        self.sphere_spin_boost = 0.0
         self.widget_fade = 1.0
         self._unlock_emitted = False
         self._pending_ok = False
@@ -453,40 +484,48 @@ class FaceUnlockWidget(QWidget):
         if self.shake_t >= 0 and self.shake_amp > 0.01:
             sx = self.shake_amp * math.sin(self.shake_t * 12.0 * 2 * math.pi)
 
-        prog = max(0.0, min(1.04, self.appear_prog))
-        cur_w = self.PILL_W * (0.4 + 0.6 * prog)
-        cur_h = self.PILL_H * (0.5 + 0.5 * prog)
+        prog = max(0.0, min(1.05, self.appear_prog))
+        cur_w = self.PILL_W * (0.45 + 0.55 * prog)
+        cur_h = self.PILL_H * (0.55 + 0.45 * prog)
         cur_w = max(60, cur_w)
-        cur_h = max(20, cur_h)
+        cur_h = max(22, cur_h)
 
         rect_x = (self.W - cur_w) / 2 + sx
         rect_y = self.PILL_Y + (self.PILL_H - cur_h) / 2
         radius = cur_h / 2
+        pill_rect = QRectF(rect_x, rect_y, cur_w, cur_h)
 
-        # Shadow
-        for i in range(3):
-            alpha = max(0, int(40 / (i + 1)))
+        # ── Soft layered shadow (Apple depth) ──
+        for i in range(4):
+            alpha = max(0, int(38 / (i + 1)))
             P.save()
-            P.translate(0, 2 + i * 2)
+            P.translate(0, 1.5 + i * 2.2)
             P.setBrush(QBrush(QColor(0, 0, 0, alpha)))
             P.setPen(Qt.NoPen)
-            P.drawRoundedRect(QRectF(rect_x, rect_y, cur_w, cur_h),
-                              radius, radius)
+            P.drawRoundedRect(pill_rect, radius, radius)
             P.restore()
 
-        # Main pill (pure black)
-        P.setBrush(QBrush(QColor(0, 0, 0, 255)))
+        # ── Main pill: near-black with subtle vertical gradient ──
+        body_grad = QLinearGradient(rect_x, rect_y, rect_x, rect_y + cur_h)
+        body_grad.setColorAt(0.0, QColor(24, 24, 26, 255))
+        body_grad.setColorAt(0.5, QColor(10, 10, 12, 255))
+        body_grad.setColorAt(1.0, QColor(0, 0, 0, 255))
+        P.setBrush(QBrush(body_grad))
         P.setPen(Qt.NoPen)
-        P.drawRoundedRect(QRectF(rect_x, rect_y, cur_w, cur_h),
+        P.drawRoundedRect(pill_rect, radius, radius)
+
+        # ── Hairline rim light (top edge) ──
+        rim = QLinearGradient(rect_x, rect_y, rect_x, rect_y + cur_h * 0.5)
+        rim.setColorAt(0, QColor(255, 255, 255, 26))
+        rim.setColorAt(1, QColor(255, 255, 255, 0))
+        P.setPen(QPen(QColor(255, 255, 255, 18), 0.8))
+        P.setBrush(QBrush(rim))
+        P.drawRoundedRect(pill_rect.adjusted(0.5, 0.5, -0.5, -0.5),
                           radius, radius)
 
-        # Subtle gloss
-        gloss = QLinearGradient(rect_x, rect_y, rect_x, rect_y + cur_h * 0.5)
-        gloss.setColorAt(0, QColor(255, 255, 255, 14))
-        gloss.setColorAt(1, QColor(255, 255, 255, 0))
-        P.setBrush(QBrush(gloss))
-        P.drawRoundedRect(QRectF(rect_x, rect_y, cur_w, cur_h),
-                          radius, radius)
+        # ── Scan sweep highlight (only while scanning) ──
+        if self.ph == self.SCAN and prog >= 0.9:
+            self._draw_scan_sweep(P, pill_rect, radius)
 
         if prog < 0.6:
             P.end()
@@ -497,7 +536,7 @@ class FaceUnlockWidget(QWidget):
 
         ic_y = rect_y + cur_h / 2
 
-        # LOCK icon (left) — animates locked → unlocked
+        # LOCK icon (left)
         if self.lock_alpha > 0.01:
             lock_x = rect_x + cur_h * 0.85
             self._draw_lock_icon(P, lock_x, ic_y,
@@ -510,11 +549,11 @@ class FaceUnlockWidget(QWidget):
         if self.cam_alpha > 0.01:
             pulse_active = 1.0
             if self.ph == self.SCAN:
-                pulse_active = 1.0 + 0.08 * math.sin(self.cam_pulse_t * 3.5)
+                pulse_active = 1.0 + 0.07 * math.sin(self.cam_pulse_t * 3.5)
             self._draw_camera_indicator(P, cam_x, cam_y,
                                          self.cam_alpha, pulse_active)
 
-        # 3D SPHERE over camera (only on success)
+        # 3D SPHERE over camera (success only)
         if self.sphere_alpha > 0.01:
             sphere_r = (cur_h / 2 + 1) * self.sphere_scale
             if sphere_r > 2:
@@ -523,9 +562,30 @@ class FaceUnlockWidget(QWidget):
 
         P.end()
 
+    # ── Scan sweep: a soft light band gliding across the pill ──
+    def _draw_scan_sweep(self, P, rect, radius):
+        P.save()
+        path = QPainterPath()
+        path.addRoundedRect(rect, radius, radius)
+        P.setClipPath(path)
+
+        band_w = rect.width() * 0.42
+        # ping-pong position for a gentle back-and-forth
+        s = self.scan_sweep
+        tri = 1 - abs(2 * s - 1)          # 0..1..0
+        cx = rect.x() - band_w + (rect.width() + band_w) * tri
+
+        g = QLinearGradient(cx - band_w / 2, 0, cx + band_w / 2, 0)
+        g.setColorAt(0.0, QColor(48, 209, 88, 0))
+        g.setColorAt(0.5, QColor(90, 230, 130, 26))
+        g.setColorAt(1.0, QColor(48, 209, 88, 0))
+        P.setBrush(QBrush(g))
+        P.setPen(Qt.NoPen)
+        P.drawRect(rect)
+        P.restore()
+
     # ══════════════════════════════════════════════════
-    # LOCK ICON (animated: locked → unlocked)
-    # open_prog: 0 = locked closed, 1 = unlocked (shackle up + rotated)
+    # LOCK ICON (locked → unlocked)
     # ══════════════════════════════════════════════════
     def _draw_lock_icon(self, P, cx, cy, alpha, open_prog):
         a = int(255 * alpha)
@@ -535,35 +595,29 @@ class FaceUnlockWidget(QWidget):
         body_h = 9
         shackle_r = 4.5
 
-        # ── Shackle: lifts up + tilts when unlocking ──
-        # When open_prog = 0: shackle sits on body
-        # When open_prog = 1: shackle lifts 4px up + tilts 25°
-        shackle_lift = -4 * open_prog
-        shackle_tilt = -25 * open_prog  # degrees
+        shackle_lift = -4.2 * open_prog
+        shackle_tilt = -26 * open_prog
 
-        # Color tint: changes to green when unlocked
         if open_prog > 0:
-            # Lerp white → light green
-            r_val = int(255 - 60 * open_prog)
-            g_val = 255
-            b_val = int(255 - 80 * open_prog)
-            shackle_col = QColor(r_val, g_val, b_val, a)
-            body_col    = QColor(r_val, g_val, b_val, a)
+            r_val = int(lerp(255, 60,  open_prog))
+            g_val = int(lerp(255, 220, open_prog))  # settle at iOS green
+            g_val = 255 if open_prog < 0.5 else g_val
+            b_val = int(lerp(255, 110, open_prog))
+            shackle_col = QColor(r_val, 255, b_val, a)
+            body_col    = QColor(r_val, 255, b_val, a)
         else:
             shackle_col = QColor(255, 255, 255, a)
             body_col    = QColor(255, 255, 255, a)
 
-        # Draw shackle (arc) — translated and rotated for unlock
+        # Shackle
         P.save()
-        # Pivot point is the right side of the shackle base
-        # (so it tilts open from the right hinge)
         pivot_x = cx + shackle_r * 0.6
         pivot_y = cy - 1
         P.translate(pivot_x, pivot_y + shackle_lift)
         P.rotate(shackle_tilt)
         P.translate(-pivot_x, -pivot_y)
 
-        P.setPen(QPen(shackle_col, 1.6,
+        P.setPen(QPen(shackle_col, 1.7,
                       Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         P.setBrush(Qt.NoBrush)
         P.drawArc(QRectF(cx - shackle_r, cy - shackle_r - 2.5,
@@ -571,27 +625,31 @@ class FaceUnlockWidget(QWidget):
                   0 * 16, 180 * 16)
         P.restore()
 
-        # Lock body (stays in place)
-        P.setBrush(QBrush(body_col))
+        # Body with tiny gradient for dimensionality
+        bg = QLinearGradient(cx, cy + 0.5, cx, cy + 0.5 + body_h)
+        bg.setColorAt(0, body_col)
+        bg.setColorAt(1, QColor(body_col.red(), body_col.green(),
+                                body_col.blue(), int(a * 0.82)))
+        P.setBrush(QBrush(bg))
         P.setPen(Qt.NoPen)
         P.drawRoundedRect(QRectF(cx - body_w/2, cy + 0.5,
-                                 body_w, body_h), 2, 2)
+                                 body_w, body_h), 2.2, 2.2)
 
         # Keyhole
         P.setBrush(QBrush(QColor(0, 0, 0, a)))
         P.drawEllipse(QPointF(cx, cy + body_h/2 + 0.5), 1.2, 1.2)
 
-        # ── Unlock glow effect ──
+        # Unlock glow
         if open_prog > 0.3:
-            glow_a = int(60 * (open_prog - 0.3) / 0.7 * alpha)
+            glow_a = int(70 * (open_prog - 0.3) / 0.7 * alpha)
             if glow_a > 4:
-                gg = QRadialGradient(cx, cy, 12)
-                gg.setColorAt(0,   QColor(100, 255, 140, glow_a))
+                gg = QRadialGradient(cx, cy, 13)
+                gg.setColorAt(0,   QColor(120, 255, 160, glow_a))
                 gg.setColorAt(0.5, QColor(48, 209, 88, glow_a // 2))
                 gg.setColorAt(1,   QColor(48, 209, 88, 0))
                 P.setBrush(QBrush(gg))
                 P.setPen(Qt.NoPen)
-                P.drawEllipse(QPointF(cx, cy), 12, 12)
+                P.drawEllipse(QPointF(cx, cy), 13, 13)
 
     # ══════════════════════════════════════════════════
     # CAMERA INDICATOR
@@ -603,49 +661,43 @@ class FaceUnlockWidget(QWidget):
         r_outer = 8 * pulse
         r_inner = 6.5 * pulse
 
-        P.setBrush(QBrush(QColor(40, 40, 45, a)))
+        # bezel ring
+        P.setBrush(QBrush(QColor(38, 38, 42, a)))
         P.setPen(Qt.NoPen)
         P.drawEllipse(QPointF(cx, cy), r_outer, r_outer)
 
         lens_grad = QRadialGradient(cx - 1.5, cy - 1.5, 7 * pulse)
-        lens_grad.setColorAt(0,   QColor(50, 70, 100, a))
-        lens_grad.setColorAt(0.5, QColor(20, 30, 50, a))
+        lens_grad.setColorAt(0,   QColor(52, 74, 104, a))
+        lens_grad.setColorAt(0.5, QColor(22, 32, 52, a))
         lens_grad.setColorAt(1,   QColor(5, 10, 20, a))
         P.setBrush(QBrush(lens_grad))
         P.drawEllipse(QPointF(cx, cy), r_inner, r_inner)
 
         P.setBrush(Qt.NoBrush)
-        P.setPen(QPen(QColor(80, 100, 130, a // 2), 0.6))
+        P.setPen(QPen(QColor(84, 104, 134, a // 2), 0.6))
         P.drawEllipse(QPointF(cx, cy), 5 * pulse, 5 * pulse)
 
-        glint_a = int(180 * alpha)
+        glint_a = int(190 * alpha)
         P.setPen(Qt.NoPen)
-        P.setBrush(QBrush(QColor(180, 200, 230, glint_a)))
+        P.setBrush(QBrush(QColor(190, 208, 235, glint_a)))
         P.drawEllipse(QPointF(cx - 2, cy - 2), 1.3, 1.3)
 
         P.setBrush(QBrush(QColor(0, 0, 0, a)))
         P.drawEllipse(QPointF(cx, cy), 1.5, 1.5)
 
     # ══════════════════════════════════════════════════
-    # 🟢 AUTHENTIC iOS SPHERE — Pic 2/3 exact style
-    # Pure wireframe (NO fill, NO specular highlight)
-    # Only thin green rings rotating smoothly
+    # 🟢 iOS SPHERE — smooth wireframe, 3 rings, 360° tumble
+    #    (same technique, optimized + slightly richer depth)
     # ══════════════════════════════════════════════════
     def _draw_sphere_ios(self, P, cx, cy, r, alpha):
         base_a = int(255 * alpha)
         if base_a < 4 or r < 2: return
 
-        # iOS sphere green (slightly brighter, more luminous)
         rc = [60, 220, 100]
         rx = self.sphere_rot_x
         ry = self.sphere_rot_y
         rz = self.sphere_rot_z
 
-        # ════════════════════════════════════════════
-        # Pure wireframe sphere — 3 perpendicular rings
-        # Each ring rotates with same Y-axis spin
-        # NO fill, NO specular — just clean wireframe
-        # ════════════════════════════════════════════
         FOCAL = 100.0
         CAM_Z = 110.0
 
@@ -658,68 +710,44 @@ class FaceUnlockWidget(QWidget):
             depth_t = (z + r) / (2 * r) if r > 0 else 0.5
             return sx_, sy_, scale, depth_t
 
-        def rotate_3d(x, y, z, ax, ay, az):
-            """Full 3D rotation: X, then Y, then Z axis (tumbling)"""
-            # Rotate around X (pitch)
-            cosA, sinA = math.cos(ax), math.sin(ax)
-            y, z = y * cosA - z * sinA, y * sinA + z * cosA
-            # Rotate around Y (yaw)
-            cosA, sinA = math.cos(ay), math.sin(ay)
-            x, z = x * cosA + z * sinA, -x * sinA + z * cosA
-            # Rotate around Z (roll)
-            cosA, sinA = math.cos(az), math.sin(az)
-            x, y = x * cosA - y * sinA, x * sinA + y * cosA
+        # Precompute rotation matrices once (optimization)
+        cx_, sx_ = math.cos(rx), math.sin(rx)
+        cy_, sy_ = math.cos(ry), math.sin(ry)
+        cz_, sz_ = math.cos(rz), math.sin(rz)
+
+        def rotate_3d(x, y, z):
+            # X (pitch)
+            y, z = y * cx_ - z * sx_, y * sx_ + z * cx_
+            # Y (yaw)
+            x, z = x * cy_ + z * sy_, -x * sy_ + z * cy_
+            # Z (roll)
+            x, y = x * cz_ - y * sz_, x * sz_ + y * cz_
             return x, y, z
 
-        N_POINTS = 48  # smooth circles
-
-        # ════════════════════════════════════════════
-        # 3 rings — like the iOS sphere in Pic 2/3:
-        # 1. Equator (horizontal ring)
-        # 2. Meridian 1 (vertical, front-back)
-        # 3. Meridian 2 (vertical, left-right)
-        # All rotate together with Y-axis spin
-        # ════════════════════════════════════════════
+        N_POINTS = 44
 
         def gen_ring(tilt_axis, n_pts):
-            """
-            Generate a ring tilted on specific axis.
-            tilt_axis: 'XY' = equator, 'YZ' = meridian Y-Z, 'XZ' = meridian X-Z
-            """
             pts = []
             for i in range(n_pts + 1):
                 theta = (i / n_pts) * 2 * math.pi
                 if tilt_axis == 'XY':
-                    # Equator: XY plane
-                    x = r * math.cos(theta)
-                    y = 0
-                    z = r * math.sin(theta)
+                    x = r * math.cos(theta); y = 0.0; z = r * math.sin(theta)
                 elif tilt_axis == 'YZ':
-                    # Vertical ring 1: YZ plane (front-back)
-                    x = 0
-                    y = r * math.cos(theta)
-                    z = r * math.sin(theta)
-                elif tilt_axis == 'XY_TILT':
-                    # Tilted meridian
+                    x = 0.0; y = r * math.cos(theta); z = r * math.sin(theta)
+                else:  # tilted meridian
                     x = r * math.cos(theta) * 0.7
                     y = r * math.sin(theta)
                     z = r * math.cos(theta) * 0.7
-
-                # Apply FULL 3D rotation (tumbling — iOS authentic)
-                x, y, z = rotate_3d(x, y, z, rx, ry, rz)
+                x, y, z = rotate_3d(x, y, z)
                 pts.append((x, y, z))
             return pts
 
-        # Generate all rings
         rings = [
             gen_ring('XY', N_POINTS),
             gen_ring('YZ', N_POINTS),
             gen_ring('XY_TILT', N_POINTS),
         ]
 
-        # ════════════════════════════════════════════
-        # Collect segments with depth for sorting
-        # ════════════════════════════════════════════
         all_segments = []
         for pts in rings:
             for i in range(len(pts) - 1):
@@ -728,24 +756,19 @@ class FaceUnlockWidget(QWidget):
                 avg_z = (z1 + z2) * 0.5
                 all_segments.append((avg_z, x1, y1, z1, x2, y2, z2))
 
-        # Depth sort: back first
         all_segments.sort(key=lambda seg: seg[0])
 
-        # ════════════════════════════════════════════
-        # Subtle outer glow (NOT a fill — just halo)
-        # ════════════════════════════════════════════
-        glow_r = r + 3
+        # Soft outer halo (no fill — just glow)
+        glow_r = r + 3.5
         gg = QRadialGradient(cx, cy, glow_r)
-        gg.setColorAt(0,   QColor(rc[0], rc[1], rc[2], int(50 * alpha)))
-        gg.setColorAt(0.7, QColor(rc[0], rc[1], rc[2], int(15 * alpha)))
-        gg.setColorAt(1,   QColor(rc[0], rc[1], rc[2], 0))
+        gg.setColorAt(0.0, QColor(rc[0], rc[1], rc[2], int(55 * alpha)))
+        gg.setColorAt(0.7, QColor(rc[0], rc[1], rc[2], int(16 * alpha)))
+        gg.setColorAt(1.0, QColor(rc[0], rc[1], rc[2], 0))
         P.setBrush(QBrush(gg))
         P.setPen(Qt.NoPen)
         P.drawEllipse(QPointF(cx, cy), glow_r, glow_r)
 
-        # ════════════════════════════════════════════
-        # Draw wireframe segments back-to-front
-        # ════════════════════════════════════════════
+        # Draw wireframe back-to-front
         for (avg_z, x1, y1, z1, x2, y2, z2) in all_segments:
             sx1, sy1, scale1, d1 = project(x1, y1, z1)
             sx2, sy2, scale2, d2 = project(x2, y2, z2)
@@ -753,40 +776,42 @@ class FaceUnlockWidget(QWidget):
             avg_scale = (scale1 + scale2) * 0.5
             avg_depth = (d1 + d2) * 0.5
 
-            # ── Depth-based opacity ──
-            # Back segments (depth < 0.5): much dimmer
-            # Front segments (depth > 0.5): full brightness
             if avg_depth < 0.5:
-                # Back hemisphere: 25% to 60% brightness
-                depth_bright = 0.25 + (avg_depth / 0.5) * 0.35
+                depth_bright = 0.22 + (avg_depth / 0.5) * 0.38
             else:
-                # Front hemisphere: 60% to 100% brightness
                 depth_bright = 0.60 + ((avg_depth - 0.5) / 0.5) * 0.40
 
             seg_alpha = int(base_a * depth_bright)
             if seg_alpha < 3: continue
 
-            # ── Stroke width: perspective-scaled ──
-            # Same width feel as iOS — about 1.5px on front
-            stroke_w = 1.3 * (avg_scale / 1.0)
-            stroke_w = max(0.6, min(stroke_w, 2.2))
+            stroke_w = 1.35 * avg_scale
+            stroke_w = max(0.6, min(stroke_w, 2.3))
 
             p1 = QPointF(cx + sx1, cy - sy1)
             p2 = QPointF(cx + sx2, cy - sy2)
 
-            # ── Glow halo on front segments only ──
+            # front-facing glow bloom
             if avg_depth > 0.6:
-                ga = max(0, int(seg_alpha * 0.25))
+                ga = max(0, int(seg_alpha * 0.28))
                 if ga > 2:
                     P.setPen(QPen(QColor(rc[0], rc[1], rc[2], ga),
-                                  stroke_w + 2.0,
+                                  stroke_w + 2.2,
                                   Qt.SolidLine, Qt.RoundCap))
                     P.drawLine(p1, p2)
 
-            # ── Main wireframe line ──
             P.setPen(QPen(QColor(rc[0], rc[1], rc[2], seg_alpha),
                           stroke_w, Qt.SolidLine, Qt.RoundCap))
             P.drawLine(p1, p2)
+
+        # tiny core spark for life
+        core_a = int(base_a * 0.5)
+        if core_a > 3:
+            cg = QRadialGradient(cx, cy, r * 0.4)
+            cg.setColorAt(0, QColor(180, 255, 200, core_a))
+            cg.setColorAt(1, QColor(180, 255, 200, 0))
+            P.setBrush(QBrush(cg))
+            P.setPen(Qt.NoPen)
+            P.drawEllipse(QPointF(cx, cy), r * 0.4, r * 0.4)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
@@ -794,7 +819,7 @@ class FaceUnlockWidget(QWidget):
 
 
 # ══════════════════════════════════════════════════════════════
-# FACE WORKER
+# FACE WORKER  (unchanged — same tech)
 # ══════════════════════════════════════════════════════════════
 class FaceWorker(QThread):
     def __init__(self, sig):
@@ -921,7 +946,7 @@ class FaceWorker(QThread):
 
 
 # ══════════════════════════════════════════════════════════════
-# APP RUNNER
+# APP RUNNER  (unchanged behaviour)
 # ══════════════════════════════════════════════════════════════
 class FaceIDLoginApp:
     def __init__(self):
@@ -958,11 +983,8 @@ class FaceIDLoginApp:
 
         wk = FaceWorker(sig)
 
-        # ── CRITICAL: Wait for unlock_complete signal ──
-        # Screen unlocks ONLY when sphere animation done
         def store_user(n):
             self.result = n
-            # Write PAM cache so screen unlocks
             try:
                 import json, time
                 CACHE = "/tmp/nova_unlock_pam_cache.json"
@@ -1017,10 +1039,10 @@ def demo():
     top.start(300)
 
     print("🎬 Demo Mode: SUCCESS → FAIL → SUCCESS (auto-cycling)")
-    print("   • Watch lock unlock alongside sphere animation")
+    print("   • Golden-ratio pill • smooth scan sweep")
+    print("   • 360° tumbling wireframe sphere + spring lock")
     print("   • Press ESC to exit")
     app.exec_()
-
 
 
 if __name__ == "__main__":
@@ -1041,7 +1063,6 @@ import time as _time
 
 CACHE_FILE = "/tmp/nova_unlock_pam_cache.json"
 
-# Module-level logger (patched in tests)
 import logging as _logging_fid
 _logger_fid = _logging_fid.getLogger(__name__)
 def log(msg): _logger_fid.info(msg)
@@ -1065,12 +1086,6 @@ def write_pam_cache(username: str, cache_path: str = None) -> None:
 
 
 def ensure_on_top(widget) -> None:
-    """
-    Raise widget to top of window stack.
-    Tries xdotool first (X11 native), then Qt flags fallback.
-    xdotool is tried first — most reliable on X11/Kali/XFCE.
-    """
-    # ── Step 1: xdotool windowraise (tried first — X11 native) ──
     _xdotool_result = False
     try:
         import subprocess as _sp
@@ -1086,7 +1101,6 @@ def ensure_on_top(widget) -> None:
     except Exception:
         _xdotool_result = False
 
-    # ── Step 2: Qt flags (fallback if xdotool unavailable) ──
     try:
         from PyQt5.QtCore import Qt as _Qt
         widget.setWindowFlags(
@@ -1102,17 +1116,11 @@ def ensure_on_top(widget) -> None:
 
 
 def _make_on_top_callback(widgets):
-    """
-    Returns per-widget callbacks using lambda _w=w: ensure_on_top(_w)
-    pattern to avoid late-binding closure issues.
-    """
     return [lambda _w=w: ensure_on_top(_w) for w in widgets]
 
 
-# ── Screen unlock (xdotool first, loginctl fallback) ─────────
 def _try_unlock_screen() -> bool:
     import subprocess as _sp
-    # xdotool key Return — tried first
     try:
         r = _sp.run(["xdotool", "key", "Return"],
                     stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, timeout=2)
@@ -1120,7 +1128,6 @@ def _try_unlock_screen() -> bool:
             return True
     except Exception:
         pass
-    # loginctl unlock-session — fallback
     try:
         r = _sp.run(["loginctl", "unlock-session"],
                     stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, timeout=2)
