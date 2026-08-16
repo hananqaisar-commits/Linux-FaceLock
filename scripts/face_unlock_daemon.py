@@ -116,7 +116,7 @@ from nova_unlock.vision.face_recognizer import (
 )
 from nova_unlock.vision.camera_detector import open_camera
 try:
-    from nova_unlock.ui.face_id_screen import Sig, FaceUnlockWidget, FaceWorker
+    from nova_unlock.ui.face_unlock_widget import Sig, FaceUnlockWidget, FaceWorker
 except ImportError:
     from nova_unlock.ui.face_unlock_widget import Sig, FaceUnlockWidget, FaceWorker
 from nova_unlock.ui.universal_embed import smart_embed, raise_embedded, ensure_on_top

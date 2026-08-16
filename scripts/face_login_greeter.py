@@ -57,7 +57,7 @@ def _nova_require_ml_deps():
 
 # Canonical UI + recognition (single source of truth — same widget the demo and
 # the in-session lock daemon use, so the login greeter shows the SAME modern UI).
-from nova_unlock.ui.face_id_screen import Sig, FaceUnlockWidget, FaceWorker
+from nova_unlock.ui.face_unlock_widget import Sig, FaceUnlockWidget, FaceWorker
 # Trusted lock/greeter-screen embedding pattern (universal across GNOME/XFCE/KDE/
 # Cinnamon/MATE + LightDM/GDM) — this is what makes the UI actually VISIBLE on the
 # greeter/lock screen in every distro. Keep it.

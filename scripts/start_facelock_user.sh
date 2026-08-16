@@ -6,12 +6,9 @@ export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python3"
+VENV_PYTHON="/usr/bin/python3"
 DAEMON="$PROJECT_ROOT/scripts/face_unlock_daemon.py"
 
-if [ ! -f "$VENV_PYTHON" ]; then
-    VENV_PYTHON="python3"
-fi
 
 mkdir -p "$HOME/.cache/linux_facelock"
 LOG="$HOME/.cache/linux_facelock/watcher.log"
@@ -19,12 +16,25 @@ LOG="$HOME/.cache/linux_facelock/watcher.log"
 echo "==== $(date) Linux-FaceLock Autostart Active ====" >> "$LOG"
 
 # Detect DBus ScreenSaver interface
-DE_IFACE="org.xfce.ScreenSaver"
+DE_SERVICE="org.freedesktop.ScreenSaver"
+DE_IFACE="org.freedesktop.ScreenSaver"
 case "${XDG_CURRENT_DESKTOP:-}" in
-    *GNOME*)    DE_IFACE="org.gnome.ScreenSaver"      ;;
-    *KDE*)      DE_IFACE="org.freedesktop.ScreenSaver" ;;
-    *MATE*)     DE_IFACE="org.mate.ScreenSaver"        ;;
-    *Cinnamon*) DE_IFACE="org.cinnamon.ScreenSaver"    ;;
+    *GNOME*)
+        DE_SERVICE="org.gnome.ScreenSaver"
+        DE_IFACE="org.gnome.ScreenSaver"
+        ;;
+    *KDE*)
+        DE_SERVICE="org.kde.screensaver"
+        DE_IFACE="org.freedesktop.ScreenSaver"
+        ;;
+    *MATE*)
+        DE_SERVICE="org.mate.ScreenSaver"
+        DE_IFACE="org.mate.ScreenSaver"
+        ;;
+    *Cinnamon*)
+        DE_SERVICE="org.cinnamon.ScreenSaver"
+        DE_IFACE="org.cinnamon.ScreenSaver"
+        ;;
 esac
 
 # Clean stale lock files on startup
@@ -32,7 +42,7 @@ rm -f /tmp/nova_unlock_face.lock 2>/dev/null || true
 
 run_dbus_monitor() {
     dbus-monitor --session \
-        "type='signal',interface='$DE_IFACE',member='ActiveChanged'" 2>/dev/null | \
+        "type='signal',sender='$DE_SERVICE',path='/ScreenSaver',interface='$DE_IFACE',member='ActiveChanged'" 2>/dev/null | \
     while read -r line; do
         if echo "$line" | grep -q "boolean true"; then
             echo "$(date) Screen Locked — Launching Face ID daemon" >> "$LOG"

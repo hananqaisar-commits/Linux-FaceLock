@@ -104,6 +104,7 @@ class Sig(QObject):
     ok = pyqtSignal(str)
     fail = pyqtSignal()
     unlock_complete = pyqtSignal()  # emitted ONLY after sphere animation done
+    retry_requested = pyqtSignal()
 
 class Spring:
     def __init__(self, mass=1.0, stiffness=180.0, damping=18.0):

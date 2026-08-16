@@ -6,10 +6,9 @@ REAL_USER="${SUDO_USER:-$USER}"
 [ "$REAL_USER" = "root" ] && REAL_USER=$(logname 2>/dev/null || echo "")
 REAL_HOME="/home/$REAL_USER"
 
-systemctl disable --now novaunlock.service nova-facelock.service 2>/dev/null || true
-rm -f /etc/systemd/system/novaunlock.service /etc/systemd/system/nova-facelock.service /etc/novaunlock/facelock.enabled
+systemctl disable --now nova-facelock.service 2>/dev/null || true
+rm -f /etc/systemd/system/nova-facelock.service /etc/novaunlock/facelock.enabled
 systemctl daemon-reload 2>/dev/null || true
-
 
 rm -f \
     /usr/local/bin/nova_xflock4_lock.sh \
@@ -31,7 +30,11 @@ for f in \
     /etc/pam.d/kde \
     /etc/pam.d/sddm \
     /etc/pam.d/mate-screensaver \
-    /etc/pam.d/cinnamon-screensaver; do
+    /etc/pam.d/cinnamon-screensaver \
+    /etc/pam.d/sudo \
+    /etc/pam.d/su \
+    /etc/pam.d/polkit-1 \
+    /etc/pam.d/pkexec; do
     [ -f "$f" ] && sed -i '/nova_pam_auth\|pam_script\.so/d' "$f" 2>/dev/null
 done
 
@@ -46,4 +49,4 @@ pkill -f face_login_greeter   2>/dev/null || true
 su - "$REAL_USER" -c \
     "xfconf-query -c xfce4-session -p /general/LockCommand -r 2>/dev/null" 2>/dev/null || true
 
-echo "✅ NovaUnlock removed. Run: sudo systemctl restart lightdm"
+echo "NovaUnlock removed. Run: sudo systemctl restart lightdm"
